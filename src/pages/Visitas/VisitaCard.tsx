@@ -1,99 +1,120 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
+import { Clock3, MapPin, Play, Square } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
-import { MapPin, Clock, Play, Square } from 'lucide-react'; // Ícones modernos
+import { formatDate } from '../../lib/utils';
+import { useGeolocation } from '../../hooks/useGeolocation';
+import type { VisitaComRelacionamentos } from '../../hooks/useLumiBiz';
 
-export const VisitaCard = ({ visita, onUpdate }) => {
-  const[loading, setLoading] = useState(false);
+interface VisitaCardProps {
+  visita: VisitaComRelacionamentos;
+  onUpdate: () => void;
+}
 
-  // Lógica nativa de Geolocalização
-  const getCurrentLocation = (): Promise<GeolocationPosition> => {
-    return new Promise((resolve, reject) => {
-      if (!navigator.geolocation) reject('Geolocalização não suportada');
-      navigator.geolocation.getCurrentPosition(resolve, reject, { enableHighAccuracy: true });
-    });
-  };
+export const VisitaCard = ({ visita, onUpdate }: VisitaCardProps) => {
+  const [saving, setSaving] = useState(false);
+  const { getCurrentLocation } = useGeolocation();
 
   const handleStatusChange = async (newStatus: 'Em Andamento' | 'Concluída') => {
     try {
-      setLoading(true);
+      setSaving(true);
       const position = await getCurrentLocation();
       const coords = `${position.coords.latitude},${position.coords.longitude}`;
       const timestamp = new Date().toISOString();
 
-      const updateData = newStatus === 'Em Andamento' 
-        ? { status: newStatus, check_in: timestamp, check_in_local: coords }
-        : { status: newStatus, check_out: timestamp, check_out_local: coords };
+      const updateData =
+        newStatus === 'Em Andamento'
+          ? { status: newStatus, check_in: timestamp, check_in_local: coords }
+          : { status: newStatus, check_out: timestamp, check_out_local: coords };
 
-      const { error } = await supabase
-        .from('visitas')
-        .update(updateData)
-        .eq('id', visita.id);
+      const { error } = await supabase.from('visitas').update(updateData as never).eq('id', visita.id);
 
-      if (error) throw error;
-      onUpdate(); // Atualiza a lista Kanban
+      if (error) {
+        throw error;
+      }
+
+      onUpdate();
     } catch (error) {
-      alert('Erro ao atualizar visita ou obter localização.');
+      const message = error instanceof Error ? error.message : 'Nao foi possivel atualizar a visita.';
+      alert(message);
     } finally {
-      setLoading(false);
+      setSaving(false);
     }
   };
 
   return (
-    <div className="bg-white dark:bg-[#373737] p-4 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 flex flex-col gap-3">
-      {/* Cabeçalho Card */}
-      <div className="flex justify-between items-start">
+    <article className="rounded-2xl border border-white/10 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-[#1c1c1c]">
+      <div className="flex items-start justify-between gap-3">
         <div>
-          <h4 className="font-bold text-gray-900 dark:text-white text-lg leading-tight">
-            {visita.clientes?.nome}
-          </h4>
-          <p className="text-sm text-[#BFA16A] font-medium">{visita.usuarios?.nome}</p>
+          <h4 className="text-base font-semibold text-gray-900 dark:text-white">{visita.clientes?.nome || 'Cliente sem nome'}</h4>
+          <p className="mt-1 text-sm text-brand-gold">{visita.perfis?.nome || 'Sem usuario responsavel'}</p>
         </div>
-        <span className={`text-xs font-semibold px-2 py-1 rounded-md ${
-          visita.status === 'Agendada' ? 'bg-blue-100 text-blue-700' :
-          visita.status === 'Em Andamento' ? 'bg-yellow-100 text-yellow-700' :
-          'bg-green-100 text-green-700'
-        }`}>
+        <span
+          className={`rounded-full px-2.5 py-1 text-xs font-semibold ${
+            visita.status === 'Agendada'
+              ? 'bg-sky-100 text-sky-700'
+              : visita.status === 'Em Andamento'
+                ? 'bg-amber-100 text-amber-700'
+                : 'bg-emerald-100 text-emerald-700'
+          }`}
+        >
           {visita.status}
         </span>
       </div>
 
-      {/* Info */}
-      <div className="flex flex-col gap-1 text-sm text-gray-600 dark:text-gray-300">
+      <div className="mt-4 space-y-2 text-sm text-gray-600 dark:text-gray-300">
         <div className="flex items-center gap-2">
-          <Clock size={16} />
-          <span>{new Date(visita.data_visita).toLocaleDateString()} • {visita.hora_inicio}</span>
+          <Clock3 size={16} />
+          <span>
+            {formatDate(visita.data_visita)}
+            {visita.hora_inicio ? ` as ${visita.hora_inicio.slice(0, 5)}` : ''}
+          </span>
         </div>
         {visita.check_in_local && (
-          <div className="flex items-center gap-2 text-green-600">
+          <a
+            href={`https://maps.google.com/?q=${visita.check_in_local}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 text-emerald-600 underline"
+          >
             <MapPin size={16} />
-            <a href={`https://maps.google.com/?q=${visita.check_in_local}`} target="_blank" className="underline">
-              Local de Check-in
-            </a>
-          </div>
+            <span>Ver check-in no mapa</span>
+          </a>
+        )}
+        {visita.check_out_local && (
+          <a
+            href={`https://maps.google.com/?q=${visita.check_out_local}`}
+            target="_blank"
+            rel="noreferrer"
+            className="flex items-center gap-2 text-brand-gold underline"
+          >
+            <MapPin size={16} />
+            <span>Ver check-out no mapa</span>
+          </a>
         )}
       </div>
 
-      {/* Ações (Mobile First: botões largos) */}
-      <div className="mt-2 pt-3 border-t border-gray-100 dark:border-gray-600">
+      <div className="mt-4 border-t border-gray-100 pt-4 dark:border-gray-700">
         {visita.status === 'Agendada' && (
-          <button 
+          <button
             onClick={() => handleStatusChange('Em Andamento')}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-[#BFA16A] text-white py-2.5 rounded-lg font-medium hover:bg-[#a68a5a] transition-colors active:scale-95"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-gold px-4 py-3 font-medium text-white transition-colors hover:bg-[#a98c57] disabled:opacity-60"
           >
-            <Play size={18} /> {loading ? 'Aguarde...' : 'Fazer Check-in'}
+            <Play size={18} />
+            {saving ? 'Processando...' : 'Fazer check-in'}
           </button>
         )}
         {visita.status === 'Em Andamento' && (
-          <button 
+          <button
             onClick={() => handleStatusChange('Concluída')}
-            disabled={loading}
-            className="w-full flex items-center justify-center gap-2 bg-red-500 text-white py-2.5 rounded-lg font-medium hover:bg-red-600 transition-colors active:scale-95"
+            disabled={saving}
+            className="flex w-full items-center justify-center gap-2 rounded-xl bg-red-500 px-4 py-3 font-medium text-white transition-colors hover:bg-red-600 disabled:opacity-60"
           >
-            <Square size={18} /> {loading ? 'Aguarde...' : 'Finalizar Visita'}
+            <Square size={18} />
+            {saving ? 'Processando...' : 'Fazer check-out'}
           </button>
         )}
       </div>
-    </div>
+    </article>
   );
 };

@@ -58,13 +58,34 @@ src/App.tsx
 src/assets/hero.png
 src/assets/react.svg
 src/assets/vite.svg
+src/components/layout/AppLayout.tsx
+src/components/layout/Navbar.tsx
+src/components/layout/Sidebar.tsx
 src/contexts/AuthContext.tsx
 src/hooks/useGeolocation.ts
 src/hooks/useLumiBiz.ts
 src/index.css
 src/lib/supabase.ts
+src/lib/utils.ts
 src/main.tsx
+src/pages/Chamados/ChamadosPage.tsx
+src/pages/Clientes/ClienteCard.tsx
+src/pages/Clientes/ClientesPage.tsx
+src/pages/Dashboard/DashboardPage.tsx
+src/pages/Financeiro/FinanceiroPage.tsx
+src/pages/Login.tsx
+src/pages/Reembolsos/ReembolsosPage.tsx
+src/pages/Requisicoes/RequisicoesPage.tsx
+src/pages/Servicos/ServicosPage.tsx
+src/pages/SuperAdmin/PlanosPage.tsx
+src/pages/SuperAdmin/TenantsPage.tsx
+src/pages/Validades/ValidadesPage.tsx
 src/pages/Visitas/VisitaCard.tsx
+src/pages/Visitas/VisitasKanban.tsx
+src/pages/Visitas/VisitasPage.tsx
+src/types/database.types.ts
+supabase/migrations/20260324_001_lumibiz_multitenant.sql
+tailwind.config.js
 tsconfig.app.json
 tsconfig.json
 tsconfig.node.json
@@ -73,6 +94,2795 @@ vite.config.ts
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/components/layout/AppLayout.tsx">
+import { useState } from 'react';
+import { Outlet, useLocation } from 'react-router-dom';
+import { Navbar } from './Navbar';
+import { Sidebar } from './Sidebar';
+
+const pageTitles: { [key: string]: string } = {
+  '/': 'Dashboard',
+  '/visitas': 'Visitas',
+  '/requisicoes': 'Requisições',
+  '/financeiro': 'Financeiro',
+  '/clientes': 'Clientes',
+  '/rh': 'Recursos Humanos',
+  '/reembolsos': 'Reembolsos',
+  '/validades': 'Validades',
+  '/servicos': 'Serviços',
+  '/chamados': 'Chamados',
+  '/superadmin/planos': 'Planos',
+  '/superadmin/tenants': 'Tenants',
+};
+
+export function AppLayout() {
+  const [isSidebarOpen, setSidebarOpen] = useState(false);
+  const location = useLocation();
+
+  const toggleSidebar = () => setSidebarOpen(!isSidebarOpen);
+  const closeSidebar = () => setSidebarOpen(false);
+
+  // Obtém o título da página baseado na rota atual
+  const currentPageTitle = pageTitles[location.pathname] || 'LumiBiz';
+
+  return (
+    <div className="flex h-screen bg-gray-100 dark:bg-gray-900 text-gray-800 dark:text-gray-300">
+      {/* Sidebar Overlay (para fechar no mobile) */}
+      {isSidebarOpen && (
+        <div
+          onClick={closeSidebar}
+          className="fixed inset-0 z-20 bg-black bg-opacity-50 lg:hidden"
+        ></div>
+      )}
+      
+      {/* Sidebar principal */}
+      <div className={`fixed inset-y-0 left-0 z-30 lg:relative lg:inset-auto transition-transform duration-300 ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+         <Sidebar onNavigate={closeSidebar} />
+      </div>
+
+      {/* Conteúdo Principal */}
+      <div className="flex flex-col flex-1 lg:ml-0">
+        <Navbar toggleSidebar={toggleSidebar} pageTitle={currentPageTitle} />
+        <main className="flex-1 p-4 sm:p-6 overflow-y-auto">
+          {/* O Outlet é onde as páginas (Dashboard, Visitas, etc.) serão renderizadas */}
+          <Outlet />
+        </main>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/layout/Navbar.tsx">
+import { Menu, LogOut } from 'lucide-react';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface NavbarProps {
+  toggleSidebar: () => void;
+  pageTitle: string;
+}
+
+export function Navbar({ toggleSidebar, pageTitle }: NavbarProps) {
+  const { perfil, signOut } = useAuth();
+
+  return (
+    <header className="flex items-center justify-between h-20 px-4 sm:px-6 bg-white border-b dark:bg-gray-800 dark:border-gray-700">
+      <div className="flex items-center">
+        <button
+          onClick={toggleSidebar}
+          className="text-gray-500 dark:text-gray-400 focus:outline-none lg:hidden mr-4"
+          aria-label="Abrir menu"
+        >
+          <Menu size={24} />
+        </button>
+        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
+          {pageTitle}
+        </h1>
+      </div>
+      <div className="flex items-center space-x-2 sm:space-x-4">
+        <div className="text-right hidden sm:block">
+          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
+            {perfil?.nome}
+          </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
+            {perfil?.role}
+          </p>
+        </div>
+        <img
+          className="w-10 h-10 rounded-full object-cover"
+          src={perfil?.foto_url || `https://ui-avatars.com/api/?name=${perfil?.nome}&background=BFA16A&color=fff`}
+          alt="Avatar do usuário"
+        />
+        <button
+          onClick={signOut}
+          className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
+          title="Sair"
+        >
+          <LogOut size={20} />
+        </button>
+      </div>
+    </header>
+  );
+}
+</file>
+
+<file path="src/components/layout/Sidebar.tsx">
+import { NavLink } from 'react-router-dom';
+import { useAuth } from '../../contexts/AuthContext';
+import {
+  LayoutDashboard, CalendarCheck, ClipboardList, Wallet,
+  Handshake, Briefcase, Receipt, ShieldCheck, Cog, Headset, Building2, SlidersHorizontal
+} from 'lucide-react';
+import { cn } from '../../lib/utils'; 
+
+const adminLinks = [
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/visitas', icon: CalendarCheck, label: 'Visitas' },
+  { to: '/requisicoes', icon: ClipboardList, label: 'Requisições' },
+  { to: '/financeiro', icon: Wallet, label: 'Financeiro' },
+  { to: '/clientes', icon: Handshake, label: 'Clientes' },
+  { to: '/rh', icon: Briefcase, label: 'RH' },
+  { to: '/reembolsos', icon: Receipt, label: 'Reembolsos' },
+  { to: '/validades', icon: ShieldCheck, label: 'Validades' },
+  { to: '/servicos', icon: Cog, label: 'Serviços' },
+  { to: '/chamados', icon: Headset, label: 'Chamados' },
+];
+
+const gestorLinks = [
+  { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+  { to: '/visitas', icon: CalendarCheck, label: 'Visitas' },
+  { to: '/requisicoes', icon: ClipboardList, label: 'Requisições' },
+  { to: '/financeiro', icon: Wallet, label: 'Financeiro' },
+  { to: '/clientes', icon: Handshake, label: 'Clientes' },
+  { to: '/reembolsos', icon: Receipt, label: 'Reembolsos' },
+  { to: '/validades', icon: ShieldCheck, label: 'Validades' },
+  { to: '/servicos', icon: Cog, label: 'Serviços' },
+  { to: '/chamados', icon: Headset, label: 'Chamados' },
+];
+
+// Usuário tem visão operacional das telas já migradas (ações sensíveis controladas por role nas páginas)
+const usuarioLinks = [
+    { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
+    { to: '/visitas', icon: CalendarCheck, label: 'Visitas' },
+    { to: '/requisicoes', icon: ClipboardList, label: 'Requisições' },
+    { to: '/financeiro', icon: Wallet, label: 'Financeiro' },
+    { to: '/clientes', icon: Handshake, label: 'Clientes' },
+    { to: '/reembolsos', icon: Receipt, label: 'Reembolsos' },
+    { to: '/validades', icon: ShieldCheck, label: 'Validades' },
+    { to: '/servicos', icon: Cog, label: 'Serviços' },
+    { to: '/chamados', icon: Headset, label: 'Chamados' },
+];
+
+const superAdminLinks = [
+  { to: '/superadmin/tenants', icon: Building2, label: 'Tenants' },
+  { to: '/superadmin/planos', icon: SlidersHorizontal, label: 'Planos' },
+  ...adminLinks,
+];
+
+interface SidebarProps {
+  onNavigate?: () => void;
+}
+
+export function Sidebar({ onNavigate }: SidebarProps) {
+  const { perfil } = useAuth();
+
+  const links = perfil?.role === 'super_admin'
+    ? superAdminLinks
+    : perfil?.role === 'admin' 
+    ? adminLinks 
+    : perfil?.role === 'gestor'
+    ? gestorLinks
+    : usuarioLinks;
+
+  return (
+    <aside
+      className="h-full w-64 lg:w-20 bg-brand-dark text-white flex flex-col items-center py-4"
+    >
+      <div className="w-14 h-14 bg-gradient-to-br from-gray-700 to-gray-800 rounded-lg flex items-center justify-center border-2 border-brand-gold/50 shadow-lg mb-6">
+        <span className="text-brand-gold text-3xl font-bold">L</span>
+      </div>
+      <nav className="flex-1 w-full px-3 lg:px-0 flex flex-col items-stretch lg:items-center gap-2 overflow-y-auto">
+        {links.map((link) => (
+          <NavLink
+            key={link.to}
+            to={link.to}
+            end // Garante que o link '/' só fica ativo na página exata
+            title={link.label}
+            onClick={onNavigate}
+            className={({ isActive }) =>
+              cn(
+                "flex items-center lg:justify-center gap-3 w-full lg:w-12 h-12 px-3 lg:px-0 rounded-lg transition-colors",
+                "text-gray-400 hover:bg-brand-gold hover:text-white",
+                isActive && "bg-brand-gold text-white"
+              )
+            }
+          >
+            <link.icon size={24} />
+            <span className="text-base lg:hidden">{link.label}</span>
+          </NavLink>
+        ))}
+      </nav>
+    </aside>
+  );
+}
+</file>
+
+<file path="src/lib/utils.ts">
+import { type ClassValue, clsx } from "clsx"
+import { twMerge } from "tailwind-merge"
+
+export function cn(...inputs: ClassValue[]) {
+  return twMerge(clsx(inputs))
+}
+</file>
+
+<file path="src/pages/Chamados/ChamadosPage.tsx">
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useChamados } from '../../hooks/useLumiBiz';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+
+export function ChamadosPage() {
+  const queryClient = useQueryClient();
+  const { perfil } = useAuth();
+  const { data, isLoading, isError, error } = useChamados();
+  const [titulo, setTitulo] = useState('');
+  const [prioridade, setPrioridade] = useState<'baixa' | 'media' | 'alta'>('media');
+  const [statusNovo, setStatusNovo] = useState<'aberto' | 'em_andamento' | 'resolvido'>('aberto');
+  const [statusFiltro, setStatusFiltro] = useState<'todos' | 'aberto' | 'em_andamento' | 'resolvido'>('todos');
+  const [saving, setSaving] = useState(false);
+  const canManage = ['super_admin', 'admin', 'gestor'].includes(perfil?.role || '');
+
+  const rows = useMemo(
+    () => (data || []).filter((item) => statusFiltro === 'todos' || item.status === statusFiltro),
+    [data, statusFiltro]
+  );
+
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['chamados'] });
+  };
+
+  const criarChamado = async () => {
+    if (!perfil?.tenant_id || !perfil?.id || !titulo.trim()) {
+      alert('Preencha os campos obrigatorios e confirme seu perfil.');
+      return;
+    }
+    setSaving(true);
+    const { error: insertError } = await supabase.from('chamados').insert({
+      tenant_id: perfil.tenant_id,
+      usuario_id: perfil.id,
+      titulo: titulo.trim(),
+      prioridade,
+      status: statusNovo,
+    } as never);
+    setSaving(false);
+    if (insertError) {
+      alert(`Erro ao criar chamado: ${insertError.message}`);
+      return;
+    }
+    setTitulo('');
+    setPrioridade('media');
+    setStatusNovo('aberto');
+    await refresh();
+  };
+
+  const atualizarStatus = async (id: string, status: 'aberto' | 'em_andamento' | 'resolvido') => {
+    const { error: updateError } = await supabase
+      .from('chamados')
+      .update({ status } as never)
+      .eq('id', id);
+    if (updateError) {
+      alert(`Erro ao atualizar status: ${updateError.message}`);
+      return;
+    }
+    await refresh();
+  };
+
+  const excluirChamado = async (id: string) => {
+    const confirmDelete = confirm('Deseja excluir este chamado?');
+    if (!confirmDelete) return;
+
+    const { error: deleteError } = await supabase.from('chamados').delete().eq('id', id);
+    if (deleteError) {
+      alert(`Erro ao excluir chamado: ${deleteError.message}`);
+      return;
+    }
+    await refresh();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        {isLoading && <div className="p-6 text-gray-500">Carregando chamados...</div>}
+        {isError && <div className="p-6 text-red-500">Erro ao carregar chamados: {error?.message}</div>}
+        {!isLoading && !isError && (
+          <div className="space-y-3 p-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <input
+                type="text"
+                placeholder="Titulo do chamado"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <select
+                value={prioridade}
+                onChange={(e) => setPrioridade(e.target.value as typeof prioridade)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              >
+                <option value="baixa">baixa</option>
+                <option value="media">media</option>
+                <option value="alta">alta</option>
+              </select>
+              <select
+                value={statusNovo}
+                onChange={(e) => setStatusNovo(e.target.value as typeof statusNovo)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              >
+                <option value="aberto">aberto</option>
+                <option value="em_andamento">em_andamento</option>
+                <option value="resolvido">resolvido</option>
+              </select>
+              <button
+                onClick={criarChamado}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-brand-dark text-white hover:bg-brand-gold transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Salvando...' : 'Novo Chamado'}
+              </button>
+            </div>
+
+            <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg w-fit">
+              {(['todos', 'aberto', 'em_andamento', 'resolvido'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFiltro(status)}
+                  className={`px-3 py-1 text-sm rounded-md ${statusFiltro === status ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900/40">
+                  <tr>
+                    <th className="text-left px-4 py-3">Titulo</th>
+                    <th className="text-left px-4 py-3">Prioridade</th>
+                    <th className="text-left px-4 py-3">Status</th>
+                    <th className="text-left px-4 py-3">Criado em</th>
+                    {canManage && <th className="text-left px-4 py-3">Acoes</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((item) => (
+                    <tr key={item.id} className="border-t border-gray-100 dark:border-gray-700">
+                      <td className="px-4 py-3">{item.titulo}</td>
+                      <td className="px-4 py-3 capitalize">{item.prioridade || '-'}</td>
+                      <td className="px-4 py-3">
+                        {canManage ? (
+                          <select
+                            value={item.status || 'aberto'}
+                            onChange={(e) => atualizarStatus(item.id, e.target.value as 'aberto' | 'em_andamento' | 'resolvido')}
+                            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                          >
+                            <option value="aberto">aberto</option>
+                            <option value="em_andamento">em_andamento</option>
+                            <option value="resolvido">resolvido</option>
+                          </select>
+                        ) : (
+                          <span className="capitalize">{item.status || '-'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">{new Date(item.created_at).toLocaleDateString()}</td>
+                      {canManage && (
+                        <td className="px-4 py-3">
+                          <button onClick={() => excluirChamado(item.id)} className="text-red-500 hover:text-red-600">
+                            Excluir
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Clientes/ClienteCard.tsx">
+import { Lightbulb, Handshake, Cog, MapPin, MessageCircle, Edit, Trash2, FolderOpen } from 'lucide-react';
+import { type Cliente } from '../../hooks/useLumiBiz';
+import { useAuth } from '../../contexts/AuthContext';
+
+interface ClienteCardProps {
+  cliente: Cliente;
+}
+
+export function ClienteCard({ cliente }: ClienteCardProps) {
+  const { perfil } = useAuth();
+  const isAdmin = perfil?.role === 'admin';
+
+  // Define o ícone e a cor baseado na categoria
+  const renderCategoryIcon = () => {
+    switch (cliente.categoria) {
+      case 'Lead': return <Lightbulb size={20} className="text-yellow-500" />;
+      case 'Contrato': return <Handshake size={20} className="text-blue-500" />;
+      case 'Serviço': return <Cog size={20} className="text-purple-500" />;
+      default: return null;
+    }
+  };
+
+  const statusColor = cliente.status === 'ativo' || cliente.status === 'Ativo' ? 'bg-green-500' : 'bg-red-500';
+
+  return (
+    <div className="relative bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-100 dark:border-gray-700 p-5 flex flex-col items-center text-center hover:shadow-md transition-shadow">
+      
+      {/* Ícone de Categoria (Topo Esquerda) */}
+      <div className="absolute top-3 left-3">
+        {renderCategoryIcon()}
+      </div>
+
+      {/* Bolinha de Status (Topo Direita) */}
+      <div 
+        className={`absolute top-4 right-4 h-3 w-3 rounded-full ${statusColor}`} 
+        title={`Status: ${cliente.status}`}
+      />
+
+      {/* Avatar/Logo do Cliente */}
+      <img 
+        src={cliente.foto_url || `https://ui-avatars.com/api/?name=${cliente.nome}&background=f3f4f6&color=373737`} 
+        alt={cliente.nome} 
+        className="w-20 h-20 rounded-xl object-cover mb-4 shadow-sm border border-gray-100 dark:border-gray-600"
+      />
+
+      {/* Info */}
+      <h4 className="font-bold text-lg text-gray-800 dark:text-white leading-tight mb-1">{cliente.nome}</h4>
+      <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+        Resp: {cliente.responsavel || 'Não informado'}
+      </p>
+
+      {/* Ações */}
+      <div className="flex items-center justify-center space-x-3 mt-auto pt-4 border-t border-gray-100 dark:border-gray-700 w-full">
+        {cliente.telefone && (
+          <a href={`https://wa.me/${cliente.telefone.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="text-green-500 hover:text-green-600 bg-green-50 p-2 rounded-full dark:bg-green-900/20">
+            <MessageCircle size={18} />
+          </a>
+        )}
+        
+        {cliente.endereco && (
+          <a href={`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(cliente.endereco)}`} target="_blank" rel="noreferrer" className="text-blue-500 hover:text-blue-600 bg-blue-50 p-2 rounded-full dark:bg-blue-900/20">
+            <MapPin size={18} />
+          </a>
+        )}
+
+        <button className="text-gray-500 hover:text-gray-700 bg-gray-50 p-2 rounded-full dark:bg-gray-700 dark:text-gray-300" title="Ver Documentos">
+          <FolderOpen size={18} />
+        </button>
+
+        {isAdmin && (
+          <>
+            <button className="text-brand-gold hover:text-[#a68a5a] bg-yellow-50 p-2 rounded-full dark:bg-yellow-900/20" title="Editar Cliente">
+              <Edit size={18} />
+            </button>
+            <button className="text-red-500 hover:text-red-600 bg-red-50 p-2 rounded-full dark:bg-red-900/20" title="Apagar Cliente">
+              <Trash2 size={18} />
+            </button>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Clientes/ClientesPage.tsx">
+import { useState } from 'react';
+import { Search, Plus } from 'lucide-react';
+import { useClientes } from '../../hooks/useLumiBiz';
+import { ClienteCard } from './ClienteCard';
+import { useAuth } from '../../contexts/AuthContext';
+import { cn } from '../../lib/utils';
+
+export function ClientesPage() {
+  const { perfil } = useAuth();
+  const { data: clientes, isLoading, isError } = useClientes();
+  
+  // Estados para os filtros
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('Todos');
+  const[categoryFilter, setCategoryFilter] = useState('Todos');
+
+  const isAdmin = perfil?.role === 'admin';
+
+  // Lógica de Filtro
+  const filteredClientes = clientes?.filter(c => {
+    const matchName = c.nome.toLowerCase().includes(searchTerm.toLowerCase());
+    
+    // Normalizando a string para evitar erros de maiúscula/minúscula (Ativo vs ativo)
+    const normalizedStatus = c.status ? c.status.toLowerCase() : 'ativo';
+    const matchStatus = statusFilter === 'Todos' || normalizedStatus === statusFilter.toLowerCase();
+    
+    const matchCategory = categoryFilter === 'Todos' || c.categoria === categoryFilter;
+    
+    return matchName && matchStatus && matchCategory;
+  });
+
+  if (isLoading) {
+    return <div className="flex justify-center items-center h-64"><div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-gold"></div></div>;
+  }
+
+  if (isError) {
+    return <div className="text-red-500 text-center p-4">Erro ao carregar clientes.</div>;
+  }
+
+  return (
+    <div className="space-y-6">
+      
+      {/* Controles: Busca, Filtros e Botão Novo */}
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+        
+        {/* Barra de Busca */}
+        <div className="relative w-full max-w-xs">
+          <input 
+            type="text" 
+            placeholder="Buscar cliente..." 
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 bg-white border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-gold dark:bg-gray-800 dark:border-gray-700 dark:text-white"
+          />
+          <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+        </div>
+
+        {/* Grupo de Filtros e Botão */}
+        <div className="flex flex-wrap items-center gap-3 w-full sm:w-auto">
+          
+          {/* Filtro de Status */}
+          <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+            {['Todos', 'Ativo', 'Inativo'].map(status => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={cn(
+                  "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                  statusFilter === status 
+                    ? "bg-brand-gold text-white shadow-sm" 
+                    : "text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                )}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+
+          {/* Filtro de Categoria (Só para Admin no sistema legado, mantivemos a regra) */}
+          {isAdmin && (
+            <div className="hidden md:flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg">
+              {['Todos', 'Contrato', 'Lead', 'Serviço'].map(cat => (
+                <button
+                  key={cat}
+                  onClick={() => setCategoryFilter(cat)}
+                  className={cn(
+                    "px-3 py-1.5 text-sm font-medium rounded-md transition-colors",
+                    categoryFilter === cat 
+                      ? "bg-brand-gold text-white shadow-sm" 
+                      : "text-gray-600 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600"
+                  )}
+                >
+                  {cat}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Botão Novo Cliente */}
+          {isAdmin && (
+            <button 
+              onClick={() => alert('Modal de Novo Cliente será implementado na próxima etapa!')}
+              className="flex items-center gap-2 bg-brand-dark text-white px-4 py-2 rounded-lg hover:bg-brand-gold transition-colors ml-auto sm:ml-0"
+            >
+              <Plus size={18} />
+              <span>Novo</span>
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Grid de Cartões */}
+      {filteredClientes?.length === 0 ? (
+        <div className="text-center py-12 text-gray-500 bg-white dark:bg-gray-800 rounded-xl border border-dashed border-gray-300 dark:border-gray-700">
+          Nenhum cliente encontrado para estes filtros.
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+          {filteredClientes?.map(cliente => (
+            <ClienteCard key={cliente.id} cliente={cliente} />
+          ))}
+        </div>
+      )}
+
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Dashboard/DashboardPage.tsx">
+import { useMemo } from 'react';
+import { useChamados, useClientes, useCustos, useReceitas, useRequisicoes, useVisitas } from '../../hooks/useLumiBiz';
+
+export function DashboardPage() {
+  const { data: clientes } = useClientes();
+  const { data: visitas } = useVisitas();
+  const { data: requisicoes } = useRequisicoes();
+  const { data: chamados } = useChamados();
+  const { data: receitas } = useReceitas();
+  const { data: custos } = useCustos();
+
+  const cards = useMemo(() => {
+    const totalReceitas = (receitas || []).reduce((acc, item) => acc + Number(item.valor || 0), 0);
+    const totalCustos = (custos || []).reduce((acc, item) => acc + Number(item.valor || 0), 0);
+    const saldo = totalReceitas - totalCustos;
+
+    return [
+      { label: 'Clientes', value: String((clientes || []).length) },
+      { label: 'Visitas', value: String((visitas || []).length) },
+      { label: 'Requisicoes em aberto', value: String((requisicoes || []).filter((r) => r.status === 'aberta').length) },
+      { label: 'Chamados em aberto', value: String((chamados || []).filter((c) => c.status === 'aberto').length) },
+      { label: 'Receitas', value: `R$ ${totalReceitas.toFixed(2)}` },
+      { label: 'Custos', value: `R$ ${totalCustos.toFixed(2)}` },
+      { label: 'Saldo', value: `R$ ${saldo.toFixed(2)}` },
+    ];
+  }, [clientes, visitas, requisicoes, chamados, receitas, custos]);
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Visao geral</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400">Indicadores em tempo real do seu tenant.</p>
+      </div>
+
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        {cards.map((card) => (
+          <div key={card.label} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+            <p className="text-sm text-gray-500 dark:text-gray-400">{card.label}</p>
+            <p className="text-2xl font-semibold text-brand-dark dark:text-white mt-1">{card.value}</p>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Financeiro/FinanceiroPage.tsx">
+import { useMemo, useState } from 'react';
+import { useCustos, useReceitas } from '../../hooks/useLumiBiz';
+
+type AbaFinanceiro = 'receitas' | 'custos';
+
+export function FinanceiroPage() {
+  const [aba, setAba] = useState<AbaFinanceiro>('receitas');
+  const { data: receitas, isLoading: loadingReceitas, isError: erroReceitas, error: errorReceitas } = useReceitas();
+  const { data: custos, isLoading: loadingCustos, isError: erroCustos, error: errorCustos } = useCustos();
+
+  const totais = useMemo(() => {
+    const totalReceitas = (receitas || []).reduce((acc, item) => acc + Number(item.valor || 0), 0);
+    const totalCustos = (custos || []).reduce((acc, item) => acc + Number(item.valor || 0), 0);
+    return { totalReceitas, totalCustos, saldo: totalReceitas - totalCustos };
+  }, [receitas, custos]);
+
+  const loading = aba === 'receitas' ? loadingReceitas : loadingCustos;
+  const isError = aba === 'receitas' ? erroReceitas : erroCustos;
+  const error = aba === 'receitas' ? errorReceitas : errorCustos;
+  const rows = aba === 'receitas' ? receitas || [] : custos || [];
+
+  return (
+    <div className="space-y-4">
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-sm text-gray-500">Receitas</p>
+          <p className="text-xl font-semibold text-green-600">R$ {totais.totalReceitas.toFixed(2)}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-sm text-gray-500">Custos</p>
+          <p className="text-xl font-semibold text-red-600">R$ {totais.totalCustos.toFixed(2)}</p>
+        </div>
+        <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-4">
+          <p className="text-sm text-gray-500">Saldo</p>
+          <p className="text-xl font-semibold text-brand-gold">R$ {totais.saldo.toFixed(2)}</p>
+        </div>
+      </div>
+
+      <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg w-fit">
+        <button
+          onClick={() => setAba('receitas')}
+          className={`px-4 py-1.5 rounded-md text-sm ${aba === 'receitas' ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+        >
+          Receitas
+        </button>
+        <button
+          onClick={() => setAba('custos')}
+          className={`px-4 py-1.5 rounded-md text-sm ${aba === 'custos' ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+        >
+          Custos
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        {loading && <div className="p-6 text-gray-500">Carregando {aba}...</div>}
+        {isError && <div className="p-6 text-red-500">Erro ao carregar {aba}: {error?.message}</div>}
+        {!loading && !isError && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-900/40">
+                <tr>
+                  <th className="text-left px-4 py-3">Descricao</th>
+                  <th className="text-left px-4 py-3">Categoria</th>
+                  <th className="text-left px-4 py-3">Data</th>
+                  <th className="text-left px-4 py-3">Valor</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <tr key={row.id} className="border-t border-gray-100 dark:border-gray-700">
+                    <td className="px-4 py-3">{row.descricao}</td>
+                    <td className="px-4 py-3">{row.categoria || '-'}</td>
+                    <td className="px-4 py-3">{new Date(row.data_lancamento).toLocaleDateString()}</td>
+                    <td className="px-4 py-3">R$ {Number(row.valor).toFixed(2)}</td>
+                  </tr>
+                ))}
+                {rows.length === 0 && (
+                  <tr>
+                    <td className="px-4 py-6 text-gray-500" colSpan={4}>
+                      Nenhum registro encontrado.
+                    </td>
+                  </tr>
+                )}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Login.tsx">
+import { useState } from 'react';
+import { supabase } from '../lib/supabase';
+import { useNavigate } from 'react-router-dom';
+
+export const Login = () => {
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+
+  const handleLogin = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    
+    // Autenticação nativa do Supabase
+    const { error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
+
+    if (error) {
+      alert('Erro ao fazer login. Verifique suas credenciais.');
+    } else {
+      navigate('/'); // Vai para o Dashboard se der certo
+    }
+    setLoading(false);
+  };
+
+  return (
+    <div className="flex items-center justify-center min-h-screen px-4 bg-gray-100 dark:bg-gray-900">
+      <div className="w-full max-w-md p-8 space-y-8 bg-white rounded-xl shadow-lg dark:bg-gray-800">
+        
+        {/* Logo LumiBiz */}
+        <div className="flex flex-col items-center mb-4">
+          <div className="w-20 h-20 bg-gradient-to-br from-brand-dark to-gray-600 rounded-xl flex items-center justify-center shadow-lg mb-4 border-2 border-brand-gold">
+            <span className="text-brand-gold text-4xl font-bold">L</span>
+          </div>
+          <div className="text-center">
+            <h1 className="text-3xl font-bold text-brand-dark dark:text-white">LumiBiz</h1>
+            <p className="text-sm text-gray-500 dark:text-gray-400">Gestao Multitenant</p>
+          </div>
+        </div>
+        
+        {/* Formulário */}
+        <form onSubmit={handleLogin} className="space-y-6">
+          <div className="shadow-sm rounded-md">
+            <input 
+              type="email" 
+              required
+              value={email}
+              onChange={e => setEmail(e.target.value)}
+              className="w-full px-3 py-3 text-gray-900 placeholder-gray-500 border border-gray-300 rounded-t-md focus:outline-none focus:ring-brand-gold focus:border-brand-gold dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+              placeholder="E-mail de Acesso" 
+            />
+            <input 
+              type="password" 
+              required
+              value={password}
+              onChange={e => setPassword(e.target.value)}
+              className="w-full px-3 py-3 text-gray-900 placeholder-gray-500 border border-gray-300 border-t-0 rounded-b-md focus:outline-none focus:ring-brand-gold focus:border-brand-gold dark:bg-gray-700 dark:border-gray-600 dark:text-white" 
+              placeholder="Senha" 
+            />
+          </div>
+          
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full px-4 py-3 text-sm font-medium text-white bg-brand-dark rounded-md hover:bg-brand-gold focus:outline-none transition-colors flex justify-center items-center"
+          >
+            {loading ? (
+              <span className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></span>
+            ) : (
+              'Entrar no Sistema'
+            )}
+          </button>
+        </form>
+
+      </div>
+    </div>
+  );
+};
+</file>
+
+<file path="src/pages/Reembolsos/ReembolsosPage.tsx">
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useReembolsos } from '../../hooks/useLumiBiz';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+
+export function ReembolsosPage() {
+  const queryClient = useQueryClient();
+  const { perfil } = useAuth();
+  const { data, isLoading, isError, error } = useReembolsos();
+  const [valor, setValor] = useState('');
+  const [motivo, setMotivo] = useState('');
+  const [dataSolicitacao, setDataSolicitacao] = useState(new Date().toISOString().slice(0, 10));
+  const [statusNovo, setStatusNovo] = useState<'solicitado' | 'aprovado' | 'pago' | 'recusado'>('solicitado');
+  const [statusFiltro, setStatusFiltro] = useState<'todos' | 'solicitado' | 'aprovado' | 'pago' | 'recusado'>('todos');
+  const [saving, setSaving] = useState(false);
+  const canManage = ['super_admin', 'admin', 'gestor'].includes(perfil?.role || '');
+
+  const rows = useMemo(
+    () => (data || []).filter((item) => statusFiltro === 'todos' || item.status === statusFiltro),
+    [data, statusFiltro]
+  );
+
+  const refreshReembolsos = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['reembolsos'] });
+  };
+
+  const criarReembolso = async () => {
+    if (!perfil?.tenant_id || !perfil?.id || !valor) {
+      alert('Preencha os campos obrigatorios e confirme seu perfil.');
+      return;
+    }
+    setSaving(true);
+    const { error: insertError } = await supabase.from('reembolsos').insert({
+      tenant_id: perfil.tenant_id,
+      usuario_id: perfil.id,
+      data_solicitacao: dataSolicitacao,
+      valor: Number(valor),
+      status: statusNovo,
+      motivo: motivo.trim() || null,
+    } as never);
+    setSaving(false);
+
+    if (insertError) {
+      alert(`Erro ao criar reembolso: ${insertError.message}`);
+      return;
+    }
+
+    setValor('');
+    setMotivo('');
+    setStatusNovo('solicitado');
+    await refreshReembolsos();
+  };
+
+  const atualizarStatus = async (id: string, status: 'solicitado' | 'aprovado' | 'pago' | 'recusado') => {
+    const { error: updateError } = await supabase
+      .from('reembolsos')
+      .update({ status } as never)
+      .eq('id', id);
+
+    if (updateError) {
+      alert(`Erro ao atualizar status: ${updateError.message}`);
+      return;
+    }
+    await refreshReembolsos();
+  };
+
+  const excluirReembolso = async (id: string) => {
+    const confirmDelete = confirm('Deseja excluir este reembolso?');
+    if (!confirmDelete) return;
+
+    const { error: deleteError } = await supabase.from('reembolsos').delete().eq('id', id);
+    if (deleteError) {
+      alert(`Erro ao excluir reembolso: ${deleteError.message}`);
+      return;
+    }
+    await refreshReembolsos();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        {isLoading && <div className="p-6 text-gray-500">Carregando reembolsos...</div>}
+        {isError && <div className="p-6 text-red-500">Erro ao carregar reembolsos: {error?.message}</div>}
+        {!isLoading && !isError && (
+          <div className="space-y-3 p-3">
+            <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
+              <input
+                type="date"
+                value={dataSolicitacao}
+                onChange={(e) => setDataSolicitacao(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <input
+                type="number"
+                min="0"
+                step="0.01"
+                placeholder="Valor"
+                value={valor}
+                onChange={(e) => setValor(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <select
+                value={statusNovo}
+                onChange={(e) => setStatusNovo(e.target.value as typeof statusNovo)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              >
+                <option value="solicitado">Solicitado</option>
+                <option value="aprovado">Aprovado</option>
+                <option value="pago">Pago</option>
+                <option value="recusado">Recusado</option>
+              </select>
+              <input
+                type="text"
+                placeholder="Motivo"
+                value={motivo}
+                onChange={(e) => setMotivo(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <button
+                onClick={criarReembolso}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-brand-dark text-white hover:bg-brand-gold transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Salvando...' : 'Novo Reembolso'}
+              </button>
+            </div>
+
+            <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg w-fit">
+              {(['todos', 'solicitado', 'aprovado', 'pago', 'recusado'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFiltro(status)}
+                  className={`px-3 py-1 text-sm rounded-md ${statusFiltro === status ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900/40">
+                  <tr>
+                    <th className="text-left px-4 py-3">Data</th>
+                    <th className="text-left px-4 py-3">Valor</th>
+                    <th className="text-left px-4 py-3">Status</th>
+                    <th className="text-left px-4 py-3">Motivo</th>
+                    {canManage && <th className="text-left px-4 py-3">Acoes</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((item) => (
+                    <tr key={item.id} className="border-t border-gray-100 dark:border-gray-700">
+                      <td className="px-4 py-3">{new Date(item.data_solicitacao).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">R$ {Number(item.valor).toFixed(2)}</td>
+                      <td className="px-4 py-3">
+                        {canManage ? (
+                          <select
+                            value={item.status || 'solicitado'}
+                            onChange={(e) => atualizarStatus(item.id, e.target.value as 'solicitado' | 'aprovado' | 'pago' | 'recusado')}
+                            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                          >
+                            <option value="solicitado">solicitado</option>
+                            <option value="aprovado">aprovado</option>
+                            <option value="pago">pago</option>
+                            <option value="recusado">recusado</option>
+                          </select>
+                        ) : (
+                          <span className="capitalize">{item.status || '-'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">{item.motivo || '-'}</td>
+                      {canManage && (
+                        <td className="px-4 py-3">
+                          <button onClick={() => excluirReembolso(item.id)} className="text-red-500 hover:text-red-600">
+                            Excluir
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Requisicoes/RequisicoesPage.tsx">
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useItensCatalogo, useRequisicoes } from '../../hooks/useLumiBiz';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+
+export function RequisicoesPage() {
+  const queryClient = useQueryClient();
+  const { perfil } = useAuth();
+  const [aba, setAba] = useState<'requisicoes' | 'itens'>('requisicoes');
+  const [statusFiltro, setStatusFiltro] = useState<'todas' | 'aberta' | 'aprovada' | 'recusada'>('todas');
+  const [observacoes, setObservacoes] = useState('');
+  const [statusNova, setStatusNova] = useState<'aberta' | 'aprovada' | 'recusada'>('aberta');
+  const [saving, setSaving] = useState(false);
+  const { data: requisicoes, isLoading: loadingReq, isError: errorReq, error: reqError } = useRequisicoes();
+  const { data: itens, isLoading: loadingItens, isError: errorItens, error: itensError } = useItensCatalogo();
+
+  const loading = aba === 'requisicoes' ? loadingReq : loadingItens;
+  const hasError = aba === 'requisicoes' ? errorReq : errorItens;
+  const error = aba === 'requisicoes' ? reqError : itensError;
+  const canManage = ['super_admin', 'admin', 'gestor'].includes(perfil?.role || '');
+  const requisicoesFiltradas = useMemo(
+    () => (requisicoes || []).filter((item) => statusFiltro === 'todas' || item.status === statusFiltro),
+    [requisicoes, statusFiltro]
+  );
+
+  const refreshRequisicoes = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['requisicoes'] });
+  };
+
+  const criarRequisicao = async () => {
+    if (!perfil?.tenant_id || !perfil?.id || !observacoes.trim()) {
+      alert('Preencha as observacoes e confirme seu perfil/tenant.');
+      return;
+    }
+
+    setSaving(true);
+    const { error: insertError } = await supabase.from('requisicoes').insert({
+      tenant_id: perfil.tenant_id,
+      solicitante_id: perfil.id,
+      status: statusNova,
+      observacoes: observacoes.trim(),
+    } as never);
+    setSaving(false);
+
+    if (insertError) {
+      alert(`Erro ao criar requisicao: ${insertError.message}`);
+      return;
+    }
+
+    setObservacoes('');
+    setStatusNova('aberta');
+    await refreshRequisicoes();
+  };
+
+  const atualizarStatus = async (id: string, status: 'aberta' | 'aprovada' | 'recusada') => {
+    const { error: updateError } = await supabase
+      .from('requisicoes')
+      .update({ status } as never)
+      .eq('id', id);
+    if (updateError) {
+      alert(`Erro ao atualizar status: ${updateError.message}`);
+      return;
+    }
+    await refreshRequisicoes();
+  };
+
+  const excluirRequisicao = async (id: string) => {
+    const confirmDelete = confirm('Deseja excluir esta requisicao?');
+    if (!confirmDelete) return;
+
+    const { error: deleteError } = await supabase.from('requisicoes').delete().eq('id', id);
+    if (deleteError) {
+      alert(`Erro ao excluir requisicao: ${deleteError.message}`);
+      return;
+    }
+    await refreshRequisicoes();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg w-fit">
+        <button
+          onClick={() => setAba('requisicoes')}
+          className={`px-4 py-1.5 rounded-md text-sm ${aba === 'requisicoes' ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+        >
+          Requisicoes
+        </button>
+        <button
+          onClick={() => setAba('itens')}
+          className={`px-4 py-1.5 rounded-md text-sm ${aba === 'itens' ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+        >
+          Itens de Catalogo
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        {loading && <div className="p-6 text-gray-500">Carregando...</div>}
+        {hasError && <div className="p-6 text-red-500">Erro: {error?.message}</div>}
+
+        {!loading && !hasError && aba === 'requisicoes' && (
+          <div className="space-y-3 p-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <textarea
+                value={observacoes}
+                onChange={(e) => setObservacoes(e.target.value)}
+                rows={2}
+                placeholder="Observacoes da requisicao..."
+                className="md:col-span-2 px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <select
+                value={statusNova}
+                onChange={(e) => setStatusNova(e.target.value as typeof statusNova)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              >
+                <option value="aberta">Aberta</option>
+                <option value="aprovada">Aprovada</option>
+                <option value="recusada">Recusada</option>
+              </select>
+              <button
+                onClick={criarRequisicao}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-brand-dark text-white hover:bg-brand-gold transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Salvando...' : 'Nova Requisicao'}
+              </button>
+            </div>
+
+            <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg w-fit">
+              {(['todas', 'aberta', 'aprovada', 'recusada'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFiltro(status)}
+                  className={`px-3 py-1 text-sm rounded-md ${statusFiltro === status ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900/40">
+                  <tr>
+                    <th className="text-left px-4 py-3">Status</th>
+                    <th className="text-left px-4 py-3">Criada em</th>
+                    <th className="text-left px-4 py-3">Observacoes</th>
+                    {canManage && <th className="text-left px-4 py-3">Acoes</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {requisicoesFiltradas.map((item) => (
+                    <tr key={item.id} className="border-t border-gray-100 dark:border-gray-700">
+                      <td className="px-4 py-3">
+                        {canManage ? (
+                          <select
+                            value={item.status || 'aberta'}
+                            onChange={(e) => atualizarStatus(item.id, e.target.value as 'aberta' | 'aprovada' | 'recusada')}
+                            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                          >
+                            <option value="aberta">aberta</option>
+                            <option value="aprovada">aprovada</option>
+                            <option value="recusada">recusada</option>
+                          </select>
+                        ) : (
+                          <span className="capitalize">{item.status || '-'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">{new Date(item.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">{item.observacoes || '-'}</td>
+                      {canManage && (
+                        <td className="px-4 py-3">
+                          <button onClick={() => excluirRequisicao(item.id)} className="text-red-500 hover:text-red-600">
+                            Excluir
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+
+        {!loading && !hasError && aba === 'itens' && (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-gray-50 dark:bg-gray-900/40">
+                <tr>
+                  <th className="text-left px-4 py-3">Nome</th>
+                  <th className="text-left px-4 py-3">Categoria</th>
+                  <th className="text-left px-4 py-3">Preco unitario</th>
+                  <th className="text-left px-4 py-3">Ativo</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(itens || []).map((item) => (
+                  <tr key={item.id} className="border-t border-gray-100 dark:border-gray-700">
+                    <td className="px-4 py-3">{item.nome}</td>
+                    <td className="px-4 py-3">{item.categoria || '-'}</td>
+                    <td className="px-4 py-3">{item.preco_unitario != null ? `R$ ${Number(item.preco_unitario).toFixed(2)}` : '-'}</td>
+                    <td className="px-4 py-3">{item.ativo ? 'Sim' : 'Nao'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Servicos/ServicosPage.tsx">
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useServicos } from '../../hooks/useLumiBiz';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+
+export function ServicosPage() {
+  const queryClient = useQueryClient();
+  const { perfil } = useAuth();
+  const { data, isLoading, isError, error } = useServicos();
+  const [titulo, setTitulo] = useState('');
+  const [descricao, setDescricao] = useState('');
+  const [statusNovo, setStatusNovo] = useState<'aberto' | 'em_andamento' | 'concluido'>('aberto');
+  const [statusFiltro, setStatusFiltro] = useState<'todos' | 'aberto' | 'em_andamento' | 'concluido'>('todos');
+  const [saving, setSaving] = useState(false);
+  const canManage = ['super_admin', 'admin', 'gestor'].includes(perfil?.role || '');
+
+  const rows = useMemo(
+    () => (data || []).filter((item) => statusFiltro === 'todos' || item.status === statusFiltro),
+    [data, statusFiltro]
+  );
+
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['servicos'] });
+  };
+
+  const criarServico = async () => {
+    if (!perfil?.tenant_id || !perfil?.id || !titulo.trim()) {
+      alert('Preencha os campos obrigatorios e confirme seu perfil.');
+      return;
+    }
+
+    setSaving(true);
+    const { error: insertError } = await supabase.from('servicos').insert({
+      tenant_id: perfil.tenant_id,
+      usuario_id: perfil.id,
+      titulo: titulo.trim(),
+      descricao: descricao.trim() || null,
+      status: statusNovo,
+    } as never);
+    setSaving(false);
+
+    if (insertError) {
+      alert(`Erro ao criar servico: ${insertError.message}`);
+      return;
+    }
+
+    setTitulo('');
+    setDescricao('');
+    setStatusNovo('aberto');
+    await refresh();
+  };
+
+  const atualizarStatus = async (id: string, status: 'aberto' | 'em_andamento' | 'concluido') => {
+    const { error: updateError } = await supabase
+      .from('servicos')
+      .update({ status } as never)
+      .eq('id', id);
+    if (updateError) {
+      alert(`Erro ao atualizar status: ${updateError.message}`);
+      return;
+    }
+    await refresh();
+  };
+
+  const excluirServico = async (id: string) => {
+    const confirmDelete = confirm('Deseja excluir este servico?');
+    if (!confirmDelete) return;
+
+    const { error: deleteError } = await supabase.from('servicos').delete().eq('id', id);
+    if (deleteError) {
+      alert(`Erro ao excluir servico: ${deleteError.message}`);
+      return;
+    }
+    await refresh();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        {isLoading && <div className="p-6 text-gray-500">Carregando servicos...</div>}
+        {isError && <div className="p-6 text-red-500">Erro ao carregar servicos: {error?.message}</div>}
+        {!isLoading && !isError && (
+          <div className="space-y-3 p-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <input
+                type="text"
+                placeholder="Titulo do servico"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <input
+                type="text"
+                placeholder="Descricao"
+                value={descricao}
+                onChange={(e) => setDescricao(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <select
+                value={statusNovo}
+                onChange={(e) => setStatusNovo(e.target.value as typeof statusNovo)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              >
+                <option value="aberto">aberto</option>
+                <option value="em_andamento">em_andamento</option>
+                <option value="concluido">concluido</option>
+              </select>
+              <button
+                onClick={criarServico}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-brand-dark text-white hover:bg-brand-gold transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Salvando...' : 'Novo Servico'}
+              </button>
+            </div>
+
+            <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg w-fit">
+              {(['todos', 'aberto', 'em_andamento', 'concluido'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFiltro(status)}
+                  className={`px-3 py-1 text-sm rounded-md ${statusFiltro === status ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900/40">
+                  <tr>
+                    <th className="text-left px-4 py-3">Titulo</th>
+                    <th className="text-left px-4 py-3">Status</th>
+                    <th className="text-left px-4 py-3">Criado em</th>
+                    <th className="text-left px-4 py-3">Descricao</th>
+                    {canManage && <th className="text-left px-4 py-3">Acoes</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((item) => (
+                    <tr key={item.id} className="border-t border-gray-100 dark:border-gray-700">
+                      <td className="px-4 py-3">{item.titulo}</td>
+                      <td className="px-4 py-3">
+                        {canManage ? (
+                          <select
+                            value={item.status || 'aberto'}
+                            onChange={(e) => atualizarStatus(item.id, e.target.value as 'aberto' | 'em_andamento' | 'concluido')}
+                            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                          >
+                            <option value="aberto">aberto</option>
+                            <option value="em_andamento">em_andamento</option>
+                            <option value="concluido">concluido</option>
+                          </select>
+                        ) : (
+                          <span className="capitalize">{item.status || '-'}</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">{new Date(item.created_at).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">{item.descricao || '-'}</td>
+                      {canManage && (
+                        <td className="px-4 py-3">
+                          <button onClick={() => excluirServico(item.id)} className="text-red-500 hover:text-red-600">
+                            Excluir
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/SuperAdmin/PlanosPage.tsx">
+import { usePlanos } from '../../hooks/useLumiBiz';
+
+export function PlanosPage() {
+  const { data: planos, isLoading, isError, error } = usePlanos();
+
+  if (isLoading) {
+    return <div className="py-12 text-center text-gray-500">Carregando planos...</div>;
+  }
+
+  if (isError) {
+    return <div className="py-12 text-center text-red-500">Erro ao carregar planos: {error.message}</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Gestao de Planos</h2>
+        <button className="px-4 py-2 rounded-lg bg-brand-dark text-white hover:bg-brand-gold transition-colors">
+          Novo Plano
+        </button>
+      </div>
+
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+        {planos?.map((plano) => (
+          <div
+            key={plano.id}
+            className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5"
+          >
+            <p className="text-lg font-semibold text-gray-900 dark:text-white">{plano.nome}</p>
+            <p className="text-brand-gold font-medium mt-1">R$ {Number(plano.preco_mensal).toFixed(2)} / mes</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-2">
+              Limite de usuarios: {plano.user_limit}
+            </p>
+            {plano.descricao && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">{plano.descricao}</p>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/SuperAdmin/TenantsPage.tsx">
+import { useTenants, type TenantComPlano } from '../../hooks/useLumiBiz';
+
+export function TenantsPage() {
+  const { data, isLoading, isError, error } = useTenants();
+  const tenants: TenantComPlano[] = data || [];
+
+  if (isLoading) {
+    return <div className="py-12 text-center text-gray-500">Carregando tenants...</div>;
+  }
+
+  if (isError) {
+    return <div className="py-12 text-center text-red-500">Erro ao carregar tenants: {error.message}</div>;
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between">
+        <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Gestao de Tenants</h2>
+        <button className="px-4 py-2 rounded-lg bg-brand-dark text-white hover:bg-brand-gold transition-colors">
+          Novo Tenant
+        </button>
+      </div>
+
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead className="bg-gray-50 dark:bg-gray-900/40">
+              <tr>
+                <th className="text-left px-4 py-3">Tenant</th>
+                <th className="text-left px-4 py-3">Plano</th>
+                <th className="text-left px-4 py-3">Status</th>
+                <th className="text-left px-4 py-3">Limite de Usuarios</th>
+              </tr>
+            </thead>
+            <tbody>
+              {tenants.map((tenant) => (
+                <tr key={tenant.id} className="border-t border-gray-100 dark:border-gray-700">
+                  <td className="px-4 py-3">{tenant.nome_fantasia}</td>
+                  <td className="px-4 py-3">
+                    {tenant.planos ? `${tenant.planos.nome} (R$ ${tenant.planos.preco_mensal})` : '-'}
+                  </td>
+                  <td className="px-4 py-3 capitalize">{tenant.status}</td>
+                  <td className="px-4 py-3">{tenant.user_limit}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Validades/ValidadesPage.tsx">
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useValidades } from '../../hooks/useLumiBiz';
+import { useAuth } from '../../contexts/AuthContext';
+import { supabase } from '../../lib/supabase';
+
+export function ValidadesPage() {
+  const queryClient = useQueryClient();
+  const { perfil } = useAuth();
+  const { data, isLoading, isError, error } = useValidades();
+  const [titulo, setTitulo] = useState('');
+  const [dataValidade, setDataValidade] = useState(new Date().toISOString().slice(0, 10));
+  const [statusNovo, setStatusNovo] = useState<'pendente' | 'em_dia' | 'vencido'>('pendente');
+  const [statusFiltro, setStatusFiltro] = useState<'todos' | 'pendente' | 'em_dia' | 'vencido'>('todos');
+  const [saving, setSaving] = useState(false);
+  const canManage = ['super_admin', 'admin', 'gestor'].includes(perfil?.role || '');
+
+  const rows = useMemo(
+    () => (data || []).filter((item) => statusFiltro === 'todos' || item.status === statusFiltro),
+    [data, statusFiltro]
+  );
+
+  const refresh = async () => {
+    await queryClient.invalidateQueries({ queryKey: ['validades'] });
+  };
+
+  const criarValidade = async () => {
+    if (!perfil?.tenant_id || !titulo.trim() || !dataValidade) {
+      alert('Preencha os campos obrigatorios.');
+      return;
+    }
+
+    setSaving(true);
+    const { error: insertError } = await supabase.from('validades').insert({
+      tenant_id: perfil.tenant_id,
+      titulo: titulo.trim(),
+      data_validade: dataValidade,
+      status: statusNovo,
+    } as never);
+    setSaving(false);
+
+    if (insertError) {
+      alert(`Erro ao criar validade: ${insertError.message}`);
+      return;
+    }
+
+    setTitulo('');
+    setStatusNovo('pendente');
+    await refresh();
+  };
+
+  const atualizarStatus = async (id: string, status: 'pendente' | 'em_dia' | 'vencido') => {
+    const { error: updateError } = await supabase
+      .from('validades')
+      .update({ status } as never)
+      .eq('id', id);
+    if (updateError) {
+      alert(`Erro ao atualizar status: ${updateError.message}`);
+      return;
+    }
+    await refresh();
+  };
+
+  const excluirValidade = async (id: string) => {
+    const confirmDelete = confirm('Deseja excluir esta validade?');
+    if (!confirmDelete) return;
+
+    const { error: deleteError } = await supabase.from('validades').delete().eq('id', id);
+    if (deleteError) {
+      alert(`Erro ao excluir validade: ${deleteError.message}`);
+      return;
+    }
+    await refresh();
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl overflow-hidden">
+        {isLoading && <div className="p-6 text-gray-500">Carregando validades...</div>}
+        {isError && <div className="p-6 text-red-500">Erro ao carregar validades: {error?.message}</div>}
+        {!isLoading && !isError && (
+          <div className="space-y-3 p-3">
+            <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+              <input
+                type="text"
+                placeholder="Titulo"
+                value={titulo}
+                onChange={(e) => setTitulo(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <input
+                type="date"
+                value={dataValidade}
+                onChange={(e) => setDataValidade(e.target.value)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              />
+              <select
+                value={statusNovo}
+                onChange={(e) => setStatusNovo(e.target.value as typeof statusNovo)}
+                className="px-3 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+              >
+                <option value="pendente">pendente</option>
+                <option value="em_dia">em_dia</option>
+                <option value="vencido">vencido</option>
+              </select>
+              <button
+                onClick={criarValidade}
+                disabled={saving}
+                className="px-4 py-2 rounded-lg bg-brand-dark text-white hover:bg-brand-gold transition-colors disabled:opacity-60"
+              >
+                {saving ? 'Salvando...' : 'Nova Validade'}
+              </button>
+            </div>
+
+            <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg w-fit">
+              {(['todos', 'pendente', 'em_dia', 'vencido'] as const).map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setStatusFiltro(status)}
+                  className={`px-3 py-1 text-sm rounded-md ${statusFiltro === status ? 'bg-brand-gold text-white' : 'text-gray-700 dark:text-gray-300'}`}
+                >
+                  {status}
+                </button>
+              ))}
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-sm">
+                <thead className="bg-gray-50 dark:bg-gray-900/40">
+                  <tr>
+                    <th className="text-left px-4 py-3">Titulo</th>
+                    <th className="text-left px-4 py-3">Data de validade</th>
+                    <th className="text-left px-4 py-3">Status</th>
+                    {canManage && <th className="text-left px-4 py-3">Acoes</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {rows.map((item) => (
+                    <tr key={item.id} className="border-t border-gray-100 dark:border-gray-700">
+                      <td className="px-4 py-3">{item.titulo}</td>
+                      <td className="px-4 py-3">{new Date(item.data_validade).toLocaleDateString()}</td>
+                      <td className="px-4 py-3">
+                        {canManage ? (
+                          <select
+                            value={item.status || 'pendente'}
+                            onChange={(e) => atualizarStatus(item.id, e.target.value as 'pendente' | 'em_dia' | 'vencido')}
+                            className="px-2 py-1 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900"
+                          >
+                            <option value="pendente">pendente</option>
+                            <option value="em_dia">em_dia</option>
+                            <option value="vencido">vencido</option>
+                          </select>
+                        ) : (
+                          <span className="capitalize">{item.status || '-'}</span>
+                        )}
+                      </td>
+                      {canManage && (
+                        <td className="px-4 py-3">
+                          <button onClick={() => excluirValidade(item.id)} className="text-red-500 hover:text-red-600">
+                            Excluir
+                          </button>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Visitas/VisitasKanban.tsx">
+import { VisitaCard } from './VisitaCard';
+import type { VisitaComRelacionamentos } from '../../hooks/useLumiBiz';
+
+interface VisitasKanbanProps {
+  visitas: VisitaComRelacionamentos[];
+  onUpdate: () => void;
+}
+
+const KanbanColumn = ({ title, visitas, onUpdate }: { title: string, visitas: VisitaComRelacionamentos[], onUpdate: () => void }) => (
+  <div className="bg-gray-200 dark:bg-gray-800 rounded-lg p-3 flex-shrink-0 w-full sm:w-80">
+    <h3 className="font-bold text-lg mb-4 text-gray-800 dark:text-white px-1">
+      {title} <span className="text-gray-500 font-medium">({visitas.length})</span>
+    </h3>
+    <div className="space-y-4 h-full overflow-y-auto">
+      {visitas.length > 0 ? (
+        visitas.map(visita => <VisitaCard key={visita.id} visita={visita} onUpdate={onUpdate} />)
+      ) : (
+        <p className="text-center text-sm text-gray-500 py-4">Nenhuma visita nesta etapa.</p>
+      )}
+    </div>
+  </div>
+);
+
+export function VisitasKanban({ visitas, onUpdate }: VisitasKanbanProps) {
+  const agendadas = visitas.filter(v => v.status === 'Agendada');
+  const emAndamento = visitas.filter(v => v.status === 'Em Andamento');
+  const concluidas = visitas.filter(v => v.status === 'Concluída');
+
+  return (
+    // No mobile (padrão), é uma coluna. Em telas maiores, vira uma linha com scroll horizontal.
+    <div className="flex flex-col lg:flex-row gap-6 lg:overflow-x-auto pb-4">
+      <KanbanColumn title="Agendada" visitas={agendadas} onUpdate={onUpdate} />
+      <KanbanColumn title="Em Andamento" visitas={emAndamento} onUpdate={onUpdate} />
+      <KanbanColumn title="Concluída" visitas={concluidas} onUpdate={onUpdate} />
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Visitas/VisitasPage.tsx">
+import { useMemo, useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Plus, Search } from 'lucide-react';
+import { VisitasKanban } from './VisitasKanban';
+import { useVisitas } from '../../hooks/useLumiBiz';
+
+// Componente para exibir o estado de carregamento
+const LoadingSpinner = () => (
+  <div className="flex justify-center items-center h-64">
+    <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-brand-gold"></div>
+  </div>
+);
+
+// Componente para exibir mensagens de erro
+const ErrorMessage = ({ message }: { message: string }) => (
+  <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg" role="alert">
+    <strong className="font-bold">Erro: </strong>
+    <span className="block sm:inline">{message}</span>
+  </div>
+);
+
+export function VisitasPage() {
+  const queryClient = useQueryClient();
+  const { data: visitas, isLoading, isError, error } = useVisitas();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'Todas' | 'Agendada' | 'Em Andamento' | 'Concluída'>('Todas');
+
+  // Função para invalidar a query e forçar um novo fetch
+  const handleUpdate = () => {
+    queryClient.invalidateQueries({ queryKey: ['visitas'] });
+  };
+
+  const visitasFiltradas = useMemo(() => {
+    if (!visitas) return [];
+
+    return visitas.filter((visita) => {
+      const matchStatus = statusFilter === 'Todas' || visita.status === statusFilter;
+      const matchSearch =
+        !searchTerm ||
+        visita.clientes?.nome?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        visita.perfis?.nome?.toLowerCase().includes(searchTerm.toLowerCase());
+
+      return matchStatus && matchSearch;
+    });
+  }, [visitas, searchTerm, statusFilter]);
+
+  return (
+    <div className="container mx-auto space-y-4">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+        <div className="flex flex-col sm:flex-row gap-3">
+          <div className="relative">
+            <Search className="absolute left-3 top-2.5 text-gray-400" size={18} />
+            <input
+              type="text"
+              placeholder="Buscar por cliente ou responsável..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              className="w-full sm:w-80 pl-10 pr-4 py-2 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-brand-gold"
+            />
+          </div>
+
+          <div className="flex bg-gray-200 dark:bg-gray-700 p-1 rounded-lg w-fit">
+            {['Todas', 'Agendada', 'Em Andamento', 'Concluída'].map((status) => (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status as typeof statusFilter)}
+                className={`px-3 py-1.5 text-sm rounded-md transition-colors ${
+                  statusFilter === status
+                    ? 'bg-brand-gold text-white'
+                    : 'text-gray-700 dark:text-gray-300 hover:bg-gray-300 dark:hover:bg-gray-600'
+                }`}
+              >
+                {status}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <button
+          onClick={() => alert('Fluxo de Nova Visita será implementado na próxima etapa.')}
+          className="inline-flex items-center justify-center gap-2 bg-brand-dark text-white px-4 py-2 rounded-lg hover:bg-brand-gold transition-colors"
+        >
+          <Plus size={18} />
+          <span>Nova Visita</span>
+        </button>
+      </div>
+
+      {isLoading && <LoadingSpinner />}
+      {isError && <ErrorMessage message={error.message} />}
+      {visitas && <VisitasKanban visitas={visitasFiltradas} onUpdate={handleUpdate} />}
+    </div>
+  );
+}
+</file>
+
+<file path="src/types/database.types.ts">
+export type Json = string | number | boolean | null | { [key: string]: Json | undefined } | Json[];
+
+export type Database = {
+  public: {
+    Tables: {
+      planos: {
+        Row: {
+          id: string;
+          nome: string;
+          descricao: string | null;
+          preco_mensal: number;
+          user_limit: number;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome: string;
+          descricao?: string | null;
+          preco_mensal?: number;
+          user_limit?: number;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          nome?: string;
+          descricao?: string | null;
+          preco_mensal?: number;
+          user_limit?: number;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      tenants: {
+        Row: {
+          id: string;
+          nome_fantasia: string | null;
+          razao_social: string | null;
+          cnpj: string | null;
+          plano_id: string | null;
+          status: 'ativo' | 'inativo' | 'suspenso' | string;
+          user_limit: number | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          nome_fantasia?: string | null;
+          razao_social?: string | null;
+          cnpj?: string | null;
+          plano_id?: string | null;
+          status?: 'ativo' | 'inativo' | 'suspenso' | string;
+          user_limit?: number | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          nome_fantasia?: string | null;
+          razao_social?: string | null;
+          cnpj?: string | null;
+          plano_id?: string | null;
+          status?: 'ativo' | 'inativo' | 'suspenso' | string;
+          user_limit?: number | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      perfis: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          nome: string | null;
+          email: string | null;
+          foto_url: string | null;
+          role: 'super_admin' | 'admin' | 'gestor' | 'usuario' | string;
+          status: 'ativo' | 'inativo' | string | null;
+          created_at: string;
+        };
+        Insert: {
+          id: string;
+          tenant_id?: string | null;
+          nome?: string | null;
+          email?: string | null;
+          foto_url?: string | null;
+          role?: 'super_admin' | 'admin' | 'gestor' | 'usuario' | string;
+          status?: 'ativo' | 'inativo' | string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          nome?: string | null;
+          email?: string | null;
+          foto_url?: string | null;
+          role?: 'super_admin' | 'admin' | 'gestor' | 'usuario' | string;
+          status?: 'ativo' | 'inativo' | string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      clientes: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          nome: string;
+          categoria: 'Lead' | 'Contrato' | 'Serviço' | string | null;
+          status: 'ativo' | 'inativo' | 'Ativo' | 'Inativo' | string | null;
+          responsavel: string | null;
+          foto_url: string | null;
+          telefone: string | null;
+          endereco: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          nome: string;
+          categoria?: 'Lead' | 'Contrato' | 'Serviço' | string | null;
+          status?: 'ativo' | 'inativo' | 'Ativo' | 'Inativo' | string | null;
+          responsavel?: string | null;
+          foto_url?: string | null;
+          telefone?: string | null;
+          endereco?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          nome?: string;
+          categoria?: 'Lead' | 'Contrato' | 'Serviço' | string | null;
+          status?: 'ativo' | 'inativo' | 'Ativo' | 'Inativo' | string | null;
+          responsavel?: string | null;
+          foto_url?: string | null;
+          telefone?: string | null;
+          endereco?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      visitas: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          cliente_id: string | null;
+          usuario_id: string | null;
+          status: 'Agendada' | 'Em Andamento' | 'Concluída' | string;
+          data_visita: string;
+          hora_inicio: string | null;
+          check_in: string | null;
+          check_in_local: string | null;
+          check_out: string | null;
+          check_out_local: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          usuario_id?: string | null;
+          status?: 'Agendada' | 'Em Andamento' | 'Concluída' | string;
+          data_visita: string;
+          hora_inicio?: string | null;
+          check_in?: string | null;
+          check_in_local?: string | null;
+          check_out?: string | null;
+          check_out_local?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          usuario_id?: string | null;
+          status?: 'Agendada' | 'Em Andamento' | 'Concluída' | string;
+          data_visita?: string;
+          hora_inicio?: string | null;
+          check_in?: string | null;
+          check_in_local?: string | null;
+          check_out?: string | null;
+          check_out_local?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      receitas: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          cliente_id: string | null;
+          usuario_id: string | null;
+          descricao: string;
+          valor: number;
+          data_lancamento: string;
+          categoria: string | null;
+          status: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          usuario_id?: string | null;
+          descricao: string;
+          valor: number;
+          data_lancamento?: string;
+          categoria?: string | null;
+          status?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          usuario_id?: string | null;
+          descricao?: string;
+          valor?: number;
+          data_lancamento?: string;
+          categoria?: string | null;
+          status?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      custos: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          usuario_id: string | null;
+          descricao: string;
+          valor: number;
+          data_lancamento: string;
+          categoria: string | null;
+          status: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          usuario_id?: string | null;
+          descricao: string;
+          valor: number;
+          data_lancamento?: string;
+          categoria?: string | null;
+          status?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          usuario_id?: string | null;
+          descricao?: string;
+          valor?: number;
+          data_lancamento?: string;
+          categoria?: string | null;
+          status?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      requisicoes: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          solicitante_id: string | null;
+          status: string | null;
+          observacoes: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          solicitante_id?: string | null;
+          status?: string | null;
+          observacoes?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          solicitante_id?: string | null;
+          status?: string | null;
+          observacoes?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      itens_catalogo: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          nome: string;
+          categoria: string | null;
+          unidade: string | null;
+          preco_unitario: number | null;
+          ativo: boolean;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          nome: string;
+          categoria?: string | null;
+          unidade?: string | null;
+          preco_unitario?: number | null;
+          ativo?: boolean;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          nome?: string;
+          categoria?: string | null;
+          unidade?: string | null;
+          preco_unitario?: number | null;
+          ativo?: boolean;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      reembolsos: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          usuario_id: string | null;
+          data_solicitacao: string;
+          valor: number;
+          status: string | null;
+          motivo: string | null;
+          anexo_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          usuario_id?: string | null;
+          data_solicitacao?: string;
+          valor: number;
+          status?: string | null;
+          motivo?: string | null;
+          anexo_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          usuario_id?: string | null;
+          data_solicitacao?: string;
+          valor?: number;
+          status?: string | null;
+          motivo?: string | null;
+          anexo_url?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      validades: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          cliente_id: string | null;
+          titulo: string;
+          data_validade: string;
+          status: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          titulo: string;
+          data_validade: string;
+          status?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          titulo?: string;
+          data_validade?: string;
+          status?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      servicos: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          cliente_id: string | null;
+          usuario_id: string | null;
+          titulo: string;
+          descricao: string | null;
+          status: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          usuario_id?: string | null;
+          titulo: string;
+          descricao?: string | null;
+          status?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          usuario_id?: string | null;
+          titulo?: string;
+          descricao?: string | null;
+          status?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      chamados: {
+        Row: {
+          id: string;
+          tenant_id: string | null;
+          cliente_id: string | null;
+          usuario_id: string | null;
+          titulo: string;
+          prioridade: string | null;
+          status: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          usuario_id?: string | null;
+          titulo: string;
+          prioridade?: string | null;
+          status?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string | null;
+          cliente_id?: string | null;
+          usuario_id?: string | null;
+          titulo?: string;
+          prioridade?: string | null;
+          status?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+    };
+    Views: Record<string, never>;
+    Functions: Record<string, never>;
+    Enums: Record<string, never>;
+    CompositeTypes: Record<string, never>;
+  };
+};
+</file>
+
+<file path="supabase/migrations/20260324_001_lumibiz_multitenant.sql">
+-- LumiBiz - Base multitenant com RLS
+-- Projeto: dgwlzgblrzsbvbzlvdqo
+
+create extension if not exists "pgcrypto";
+
+-- =========================
+-- Tabelas base de tenancy
+-- =========================
+create table if not exists public.planos (
+  id uuid primary key default gen_random_uuid(),
+  nome text not null unique,
+  descricao text,
+  preco_mensal numeric(12,2) not null default 0,
+  user_limit integer not null default 5,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.tenants (
+  id uuid primary key default gen_random_uuid(),
+  nome_fantasia text not null,
+  razao_social text,
+  cnpj text,
+  plano_id uuid references public.planos(id),
+  status text not null default 'ativo' check (status in ('ativo', 'inativo', 'suspenso')),
+  user_limit integer not null default 5,
+  created_at timestamptz not null default now()
+);
+
+-- =========================
+-- Tabelas de domínio
+-- =========================
+create table if not exists public.perfis (
+  id uuid primary key references auth.users(id) on delete cascade,
+  tenant_id uuid references public.tenants(id),
+  nome text,
+  email text,
+  foto_url text,
+  role text not null default 'usuario' check (role in ('super_admin', 'admin', 'gestor', 'usuario')),
+  status text not null default 'ativo' check (status in ('ativo', 'inativo')),
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.clientes (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  nome text not null,
+  categoria text default 'Lead',
+  status text default 'ativo',
+  responsavel text,
+  foto_url text,
+  telefone text,
+  endereco text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.visitas (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  cliente_id uuid references public.clientes(id) on delete set null,
+  usuario_id uuid references public.perfis(id) on delete set null,
+  status text not null default 'Agendada' check (status in ('Agendada', 'Em Andamento', 'Concluída')),
+  data_visita date not null,
+  hora_inicio time,
+  check_in timestamptz,
+  check_in_local text,
+  check_out timestamptz,
+  check_out_local text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.receitas (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  cliente_id uuid references public.clientes(id) on delete set null,
+  usuario_id uuid references public.perfis(id) on delete set null,
+  descricao text not null,
+  valor numeric(12,2) not null,
+  data_lancamento date not null default current_date,
+  categoria text,
+  status text default 'aprovado',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.custos (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  usuario_id uuid references public.perfis(id) on delete set null,
+  descricao text not null,
+  valor numeric(12,2) not null,
+  data_lancamento date not null default current_date,
+  categoria text,
+  status text default 'lancado',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.requisicoes (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  solicitante_id uuid references public.perfis(id) on delete set null,
+  status text default 'aberta',
+  observacoes text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.itens_catalogo (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  nome text not null,
+  categoria text,
+  unidade text,
+  preco_unitario numeric(12,2),
+  ativo boolean not null default true,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.reembolsos (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  usuario_id uuid references public.perfis(id) on delete set null,
+  data_solicitacao date not null default current_date,
+  valor numeric(12,2) not null,
+  status text default 'solicitado',
+  motivo text,
+  anexo_url text,
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.validades (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  cliente_id uuid references public.clientes(id) on delete set null,
+  titulo text not null,
+  data_validade date not null,
+  status text default 'pendente',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.servicos (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  cliente_id uuid references public.clientes(id) on delete set null,
+  usuario_id uuid references public.perfis(id) on delete set null,
+  titulo text not null,
+  descricao text,
+  status text default 'aberto',
+  created_at timestamptz not null default now()
+);
+
+create table if not exists public.chamados (
+  id uuid primary key default gen_random_uuid(),
+  tenant_id uuid not null references public.tenants(id) on delete cascade,
+  cliente_id uuid references public.clientes(id) on delete set null,
+  usuario_id uuid references public.perfis(id) on delete set null,
+  titulo text not null,
+  prioridade text default 'media',
+  status text default 'aberto',
+  created_at timestamptz not null default now()
+);
+
+-- =========================
+-- Índices
+-- =========================
+create index if not exists idx_perfis_tenant on public.perfis(tenant_id);
+create index if not exists idx_clientes_tenant on public.clientes(tenant_id);
+create index if not exists idx_visitas_tenant_usuario on public.visitas(tenant_id, usuario_id);
+create index if not exists idx_receitas_tenant_usuario on public.receitas(tenant_id, usuario_id);
+create index if not exists idx_custos_tenant_usuario on public.custos(tenant_id, usuario_id);
+create index if not exists idx_requisicoes_tenant_solicitante on public.requisicoes(tenant_id, solicitante_id);
+create index if not exists idx_reembolsos_tenant_usuario on public.reembolsos(tenant_id, usuario_id);
+create index if not exists idx_validades_tenant on public.validades(tenant_id);
+create index if not exists idx_servicos_tenant_usuario on public.servicos(tenant_id, usuario_id);
+create index if not exists idx_chamados_tenant_usuario on public.chamados(tenant_id, usuario_id);
+
+-- =========================
+-- Funções auxiliares RLS
+-- =========================
+create or replace function public.current_user_role()
+returns text
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.role
+  from public.perfis p
+  where p.id = auth.uid();
+$$;
+
+create or replace function public.current_tenant_id()
+returns uuid
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select p.tenant_id
+  from public.perfis p
+  where p.id = auth.uid();
+$$;
+
+create or replace function public.is_super_admin()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.current_user_role() = 'super_admin', false);
+$$;
+
+create or replace function public.is_tenant_manager()
+returns boolean
+language sql
+stable
+security definer
+set search_path = public
+as $$
+  select coalesce(public.current_user_role() in ('admin', 'gestor'), false);
+$$;
+
+-- =========================
+-- Trigger de perfil automático
+-- =========================
+create or replace function public.handle_new_user()
+returns trigger
+language plpgsql
+security definer
+set search_path = public
+as $$
+declare
+  v_tenant_id uuid;
+  v_nome text;
+  v_role text;
+begin
+  v_tenant_id := nullif(new.raw_user_meta_data->>'tenant_id', '')::uuid;
+  v_nome := coalesce(new.raw_user_meta_data->>'nome', split_part(new.email, '@', 1));
+  v_role := coalesce(new.raw_user_meta_data->>'role', 'usuario');
+
+  insert into public.perfis (id, tenant_id, nome, email, role)
+  values (new.id, v_tenant_id, v_nome, new.email, v_role)
+  on conflict (id) do update
+    set tenant_id = excluded.tenant_id,
+        nome = excluded.nome,
+        email = excluded.email,
+        role = excluded.role;
+
+  return new;
+end;
+$$;
+
+drop trigger if exists on_auth_user_created on auth.users;
+create trigger on_auth_user_created
+after insert on auth.users
+for each row execute function public.handle_new_user();
+
+-- =========================
+-- RLS
+-- =========================
+alter table public.planos enable row level security;
+alter table public.tenants enable row level security;
+alter table public.perfis enable row level security;
+alter table public.clientes enable row level security;
+alter table public.visitas enable row level security;
+alter table public.receitas enable row level security;
+alter table public.custos enable row level security;
+alter table public.requisicoes enable row level security;
+alter table public.itens_catalogo enable row level security;
+alter table public.reembolsos enable row level security;
+alter table public.validades enable row level security;
+alter table public.servicos enable row level security;
+alter table public.chamados enable row level security;
+
+-- Planos: somente super admin
+drop policy if exists planos_select on public.planos;
+create policy planos_select on public.planos for select using (public.is_super_admin());
+drop policy if exists planos_insert on public.planos;
+create policy planos_insert on public.planos for insert with check (public.is_super_admin());
+drop policy if exists planos_update on public.planos;
+create policy planos_update on public.planos for update using (public.is_super_admin()) with check (public.is_super_admin());
+drop policy if exists planos_delete on public.planos;
+create policy planos_delete on public.planos for delete using (public.is_super_admin());
+
+-- Tenants: super admin total; admin/gestor apenas próprio tenant
+drop policy if exists tenants_select on public.tenants;
+create policy tenants_select on public.tenants
+for select
+using (public.is_super_admin() or id = public.current_tenant_id());
+
+drop policy if exists tenants_insert on public.tenants;
+create policy tenants_insert on public.tenants
+for insert
+with check (public.is_super_admin());
+
+drop policy if exists tenants_update on public.tenants;
+create policy tenants_update on public.tenants
+for update
+using (public.is_super_admin() or id = public.current_tenant_id())
+with check (public.is_super_admin() or id = public.current_tenant_id());
+
+drop policy if exists tenants_delete on public.tenants;
+create policy tenants_delete on public.tenants
+for delete
+using (public.is_super_admin());
+
+-- Perfis
+drop policy if exists perfis_select on public.perfis;
+create policy perfis_select on public.perfis
+for select
+using (
+  public.is_super_admin()
+  or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+  or id = auth.uid()
+);
+
+drop policy if exists perfis_insert on public.perfis;
+create policy perfis_insert on public.perfis
+for insert
+with check (
+  public.is_super_admin()
+  or (public.is_tenant_manager() and tenant_id = public.current_tenant_id())
+);
+
+drop policy if exists perfis_update on public.perfis;
+create policy perfis_update on public.perfis
+for update
+using (
+  public.is_super_admin()
+  or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+  or id = auth.uid()
+)
+with check (
+  public.is_super_admin()
+  or tenant_id = public.current_tenant_id()
+);
+
+drop policy if exists perfis_delete on public.perfis;
+create policy perfis_delete on public.perfis
+for delete
+using (
+  public.is_super_admin()
+  or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+);
+
+-- Regra padrão tenant-based
+do $$
+declare
+  t text;
+begin
+  foreach t in array array[
+    'clientes','itens_catalogo','validades'
+  ]
+  loop
+    execute format('drop policy if exists %I_select on public.%I', t, t);
+    execute format('create policy %I_select on public.%I for select using (public.is_super_admin() or tenant_id = public.current_tenant_id())', t, t);
+    execute format('drop policy if exists %I_insert on public.%I', t, t);
+    execute format('create policy %I_insert on public.%I for insert with check (public.is_super_admin() or (public.is_tenant_manager() and tenant_id = public.current_tenant_id()))', t, t);
+    execute format('drop policy if exists %I_update on public.%I', t, t);
+    execute format('create policy %I_update on public.%I for update using (public.is_super_admin() or (public.is_tenant_manager() and tenant_id = public.current_tenant_id())) with check (public.is_super_admin() or tenant_id = public.current_tenant_id())', t, t);
+    execute format('drop policy if exists %I_delete on public.%I', t, t);
+    execute format('create policy %I_delete on public.%I for delete using (public.is_super_admin() or (public.is_tenant_manager() and tenant_id = public.current_tenant_id()))', t, t);
+  end loop;
+end $$;
+
+-- Regra com usuário responsável (usuário só enxerga/edita o próprio)
+do $$
+declare
+  t text;
+  user_col text;
+begin
+  foreach t, user_col in
+    select * from (values
+      ('visitas', 'usuario_id'),
+      ('receitas', 'usuario_id'),
+      ('custos', 'usuario_id'),
+      ('reembolsos', 'usuario_id'),
+      ('servicos', 'usuario_id'),
+      ('chamados', 'usuario_id')
+    ) as x(t, user_col)
+  loop
+    execute format('drop policy if exists %I_select on public.%I', t, t);
+    execute format(
+      'create policy %I_select on public.%I for select using (
+        public.is_super_admin()
+        or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+        or (tenant_id = public.current_tenant_id() and %I = auth.uid())
+      )', t, t, user_col
+    );
+
+    execute format('drop policy if exists %I_insert on public.%I', t, t);
+    execute format(
+      'create policy %I_insert on public.%I for insert with check (
+        public.is_super_admin()
+        or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+        or (tenant_id = public.current_tenant_id() and %I = auth.uid())
+      )', t, t, user_col
+    );
+
+    execute format('drop policy if exists %I_update on public.%I', t, t);
+    execute format(
+      'create policy %I_update on public.%I for update using (
+        public.is_super_admin()
+        or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+        or (tenant_id = public.current_tenant_id() and %I = auth.uid())
+      ) with check (
+        public.is_super_admin()
+        or tenant_id = public.current_tenant_id()
+      )', t, t, user_col
+    );
+
+    execute format('drop policy if exists %I_delete on public.%I', t, t);
+    execute format(
+      'create policy %I_delete on public.%I for delete using (
+        public.is_super_admin()
+        or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+      )', t, t
+    );
+  end loop;
+end $$;
+
+-- Requisições: usuário baseado em solicitante_id
+drop policy if exists requisicoes_select on public.requisicoes;
+create policy requisicoes_select on public.requisicoes
+for select
+using (
+  public.is_super_admin()
+  or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+  or (tenant_id = public.current_tenant_id() and solicitante_id = auth.uid())
+);
+
+drop policy if exists requisicoes_insert on public.requisicoes;
+create policy requisicoes_insert on public.requisicoes
+for insert
+with check (
+  public.is_super_admin()
+  or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+  or (tenant_id = public.current_tenant_id() and solicitante_id = auth.uid())
+);
+
+drop policy if exists requisicoes_update on public.requisicoes;
+create policy requisicoes_update on public.requisicoes
+for update
+using (
+  public.is_super_admin()
+  or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+)
+with check (
+  public.is_super_admin()
+  or tenant_id = public.current_tenant_id()
+);
+
+drop policy if exists requisicoes_delete on public.requisicoes;
+create policy requisicoes_delete on public.requisicoes
+for delete
+using (
+  public.is_super_admin()
+  or (tenant_id = public.current_tenant_id() and public.is_tenant_manager())
+);
+</file>
+
+<file path="tailwind.config.js">
+/** @type {import('tailwindcss').Config} */
+export default {
+  content:[
+    "./index.html",
+    "./src/**/*.{js,ts,jsx,tsx}",
+  ],
+  darkMode: 'class', // Habilita o dark mode no sistema
+  theme: {
+    extend: {
+      colors: {
+        'brand-gold': '#BFA16A',
+        'brand-dark': '#373737',
+      }
+    },
+  },
+  plugins:[],
+}
+</file>
 
 <file path=".gitignore">
 # Logs
@@ -134,7 +2944,7 @@ export default defineConfig([
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>lumibiz</title>
+    <title>LumíBiz</title>
   </head>
   <body>
     <div id="root"></div>
@@ -166,7 +2976,7 @@ export default defineConfig([
 
 <file path="package.json">
 {
-  "name": "lumichef",
+  "name": "lumibiz",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -192,11 +3002,10 @@ export default defineConfig([
     "react-hook-form": "^7.69.0",
     "react-imask": "^7.6.1",
     "react-leaflet": "^5.0.0",
-    "react-router-dom": "^7.11.0",
+    "react-router-dom": "^7.13.2",
     "recharts": "^3.6.0",
     "repomix": "^1.11.0",
-    "tailwind-merge": "^3.4.0",
-    "vite-plugin-pwa": "^1.2.0",
+    "tailwind-merge": "^3.5.0",
     "zustand": "^5.0.9"
   },
   "devDependencies": {
@@ -215,7 +3024,8 @@ export default defineConfig([
     "tailwindcss": "^3.4.16",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.46.4",
-    "vite": "^7.2.4"
+    "vite": "^7.2.4",
+    "vite-plugin-pwa": "^1.2.0"
   }
 }
 </file>
@@ -258,82 +3068,6 @@ export default {
     <path fill="#08060d" fill-rule="evenodd" d="M1.893 1.98c.052.072 1.245 1.769 2.653 3.77l2.892 4.114c.183.261.333.48.333.486s-.068.089-.152.183l-.522.593-.765.867-3.597 4.087c-.375.426-.734.834-.798.905a1 1 0 0 0-.118.148c0 .01.236.017.664.017h.663l.729-.83c.4-.457.796-.906.879-.999a692 692 0 0 0 1.794-2.038c.034-.037.301-.34.594-.675l.551-.624.345-.392a7 7 0 0 1 .34-.374c.006 0 .93 1.306 2.052 2.903l2.084 2.965.045.063h2.275c1.87 0 2.273-.003 2.266-.021-.008-.02-1.098-1.572-3.894-5.547-2.013-2.862-2.28-3.246-2.273-3.266.008-.019.282-.332 2.085-2.38l2-2.274 1.567-1.782c.022-.028-.016-.03-.65-.03h-.674l-.3.342a871 871 0 0 1-1.782 2.025c-.067.075-.405.458-.75.852a100 100 0 0 1-.803.91c-.148.172-.299.344-.99 1.127-.304.343-.32.358-.345.327-.015-.019-.904-1.282-1.976-2.808L6.365 1.85H1.8zm1.782.91 8.078 11.294c.772 1.08 1.413 1.973 1.425 1.984.016.017.241.02 1.05.017l1.03-.004-2.694-3.766L7.796 5.75 5.722 2.852l-1.039-.004-1.039-.004z" clip-rule="evenodd"/>
   </symbol>
 </svg>
-</file>
-
-<file path="README.md">
-# React + TypeScript + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
-
-## React Compiler
-
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
-
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
-```
 </file>
 
 <file path="src/App.css">
@@ -524,127 +3258,139 @@ export default defineConfig([
 </file>
 
 <file path="src/App.tsx">
-import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
-import './App.css'
+import { Suspense, lazy, type ReactElement } from 'react';
+import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
 
-function App() {
-  const [count, setCount] = useState(0)
+// Importando o Layout principal
+import { AppLayout } from './components/layout/AppLayout';
+
+const Login = lazy(() => import('./pages/Login').then((m) => ({ default: m.Login })));
+const DashboardPage = lazy(() => import('./pages/Dashboard/DashboardPage').then((m) => ({ default: m.DashboardPage })));
+const VisitasPage = lazy(() => import('./pages/Visitas/VisitasPage').then((m) => ({ default: m.VisitasPage })));
+const RequisicoesPage = lazy(() => import('./pages/Requisicoes/RequisicoesPage').then((m) => ({ default: m.RequisicoesPage })));
+const FinanceiroPage = lazy(() => import('./pages/Financeiro/FinanceiroPage').then((m) => ({ default: m.FinanceiroPage })));
+const ClientesPage = lazy(() => import('./pages/Clientes/ClientesPage').then((m) => ({ default: m.ClientesPage })));
+const ReembolsosPage = lazy(() => import('./pages/Reembolsos/ReembolsosPage').then((m) => ({ default: m.ReembolsosPage })));
+const ValidadesPage = lazy(() => import('./pages/Validades/ValidadesPage').then((m) => ({ default: m.ValidadesPage })));
+const ServicosPage = lazy(() => import('./pages/Servicos/ServicosPage').then((m) => ({ default: m.ServicosPage })));
+const ChamadosPage = lazy(() => import('./pages/Chamados/ChamadosPage').then((m) => ({ default: m.ChamadosPage })));
+const TenantsPage = lazy(() => import('./pages/SuperAdmin/TenantsPage').then((m) => ({ default: m.TenantsPage })));
+const PlanosPage = lazy(() => import('./pages/SuperAdmin/PlanosPage').then((m) => ({ default: m.PlanosPage })));
+
+// Componente de Loading de tela cheia
+const FullScreenLoader = () => (
+  <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+    <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-brand-gold"></div>
+  </div>
+);
+
+// Componente Placeholder para páginas em construção
+const PlaceholderPage = ({ title }: { title: string }) => (
+  <div className="p-10 text-center bg-white dark:bg-gray-800 rounded-lg shadow-md">
+    <h2 className="text-2xl font-semibold text-gray-800 dark:text-white">Página: {title}</h2>
+    <p className="text-gray-500 dark:text-gray-400 mt-2">Em construção...</p>
+  </div>
+);
+
+const RouteLoader = () => (
+  <div className="flex items-center justify-center h-48">
+    <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-gold"></div>
+  </div>
+);
+
+const withSuspense = (element: ReactElement) => (
+  <Suspense fallback={<RouteLoader />}>
+    {element}
+  </Suspense>
+);
+
+// Componente de Roteamento que decide entre rotas públicas e privadas
+const AppRouter = () => {
+  const { session, loading } = useAuth();
+
+  // Enquanto a sessão está sendo verificada, mostramos um loader
+  if (loading) {
+    return <FullScreenLoader />;
+  }
 
   return (
-    <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.tsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
-      </section>
+    <Routes>
+      {/* Rota de Login: Acessível apenas se não estiver logado */}
+      <Route path="/login" element={session ? <Navigate to="/" replace /> : withSuspense(<Login />)} />
+      
+      {/* Rotas Privadas: Acessíveis apenas se estiver logado */}
+      <Route path="/*" element={session ? <PrivateRoutes /> : <Navigate to="/login" replace />} />
+    </Routes>
+  );
+};
 
-      <div className="ticks"></div>
+const SuperAdminGuard = ({ children }: { children: ReactElement }) => {
+  const { perfil } = useAuth();
 
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
+  if (perfil?.role !== 'super_admin') {
+    return <Navigate to="/" replace />;
+  }
 
-      <div className="ticks"></div>
-      <section id="spacer"></section>
-    </>
-  )
+  return children;
+};
+
+// Componente que define as rotas internas da aplicação (dentro do layout)
+const PrivateRoutes = () => {
+  return (
+    <Routes>
+      <Route element={<AppLayout />}>
+        {/* O 'index' define a rota padrão (/) dentro do layout */}
+        <Route index element={withSuspense(<DashboardPage />)} />
+        
+        {/* Rota para a página de visitas já criada */}
+        <Route path="/visitas" element={withSuspense(<VisitasPage />)} />
+        
+        {/* Placeholders para as futuras páginas */}
+        <Route path="/requisicoes" element={withSuspense(<RequisicoesPage />)} />
+        <Route path="/financeiro" element={withSuspense(<FinanceiroPage />)} />
+        <Route path="/clientes" element={withSuspense(<ClientesPage />)} />
+        <Route path="/rh" element={<PlaceholderPage title="RH" />} />
+        <Route path="/reembolsos" element={withSuspense(<ReembolsosPage />)} />
+        <Route path="/validades" element={withSuspense(<ValidadesPage />)} />
+        <Route path="/servicos" element={withSuspense(<ServicosPage />)} />
+        <Route path="/chamados" element={withSuspense(<ChamadosPage />)} />
+        <Route
+          path="/superadmin/tenants"
+          element={
+            <SuperAdminGuard>
+              {withSuspense(<TenantsPage />)}
+            </SuperAdminGuard>
+          }
+        />
+        <Route
+          path="/superadmin/planos"
+          element={
+            <SuperAdminGuard>
+              {withSuspense(<PlanosPage />)}
+            </SuperAdminGuard>
+          }
+        />
+        
+        
+        {/* Rota 'catch-all' para qualquer outro caminho, redireciona para o dashboard */}
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Route>
+    </Routes>
+  );
+};
+
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <AppRouter />
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 
-export default App
+export default App;
 </file>
 
 <file path="src/assets/react.svg">
@@ -656,70 +3402,445 @@ export default App
 </file>
 
 <file path="src/contexts/AuthContext.tsx">
+import { createContext, useContext, useEffect, useState, type ReactNode } from 'react';
+import type { Session, User } from '@supabase/supabase-js';
+import { supabase } from '../lib/supabase';
+import type { Database } from '../types/database.types';
 
+// O 'type' aqui é importante. Renomeamos para evitar conflito com o componente.
+type PerfilUsuario = Database['public']['Tables']['perfis']['Row'];
+type PerfilComTenant = PerfilUsuario & {
+  tenants: Pick<Database['public']['Tables']['tenants']['Row'], 'nome_fantasia'> | null;
+};
+
+interface AuthContextProps {
+  session: Session | null;
+  user: User | null;
+  perfil: PerfilComTenant | null;
+  loading: boolean;
+  signOut: () => Promise<void>;
+}
+
+const AuthContext = createContext<AuthContextProps>({} as AuthContextProps);
+
+export const AuthProvider = ({ children }: { children: ReactNode }) => {
+  const [session, setSession] = useState<Session | null>(null);
+  const [user, setUser] = useState<User | null>(null);
+  const [perfil, setPerfil] = useState<PerfilComTenant | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  const fetchPerfil = async (userId: string) => {
+    try {
+      const { data, error } = await supabase
+        .from('perfis')
+        .select(`
+          *,
+          tenants ( nome_fantasia )
+        `)
+        .eq('id', userId)
+        .single();
+
+      if (!error && data) {
+        setPerfil(data);
+      } else {
+        setPerfil(null);
+      }
+    } catch {
+      setPerfil(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const getInitialSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession();
+      setSession(session);
+      setUser(session?.user ?? null);
+      if (session?.user) {
+        await fetchPerfil(session.user.id);
+      } else {
+        setLoading(false);
+      }
+    };
+
+    getInitialSession();
+
+    // Garante que a tela não fique travada caso qualquer request de auth/perfil demore demais.
+    const loadingTimeout = setTimeout(() => {
+      setLoading(false);
+    }, 8000);
+
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      setSession(session);
+      setUser(session?.user ?? null);
+      
+      if (session?.user) {
+        setLoading(true); // Reinicia o loading para buscar o novo perfil
+        fetchPerfil(session.user.id);
+      } else {
+        setPerfil(null);
+        setLoading(false);
+      }
+    });
+
+    return () => {
+      clearTimeout(loadingTimeout);
+      subscription?.unsubscribe();
+    };
+  }, []); // <--- CORREÇÃO: Faltava este array de dependências vazio.
+
+  const signOut = async () => {
+    await supabase.auth.signOut();
+  };
+
+  return (
+    <AuthContext.Provider value={{ session, user, perfil, loading, signOut }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+// Hook personalizado para usar o contexto
+// eslint-disable-next-line react-refresh/only-export-components
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (context === undefined) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider');
+  }
+  return context;
+};
 </file>
 
 <file path="src/hooks/useGeolocation.ts">
+import { useState } from 'react';
 
+export const useGeolocation = () => {
+  const[loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const getCurrentLocation = (): Promise<GeolocationPosition> => {
+    setLoading(true);
+    setError(null);
+    
+    return new Promise((resolve, reject) => {
+      if (!navigator.geolocation) {
+        const msg = 'Geolocalização não é suportada por este navegador.';
+        setError(msg);
+        setLoading(false);
+        reject(new Error(msg));
+      } else {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLoading(false);
+            resolve(position);
+          },
+          (err) => {
+            const msg = `Erro ao obter localização: ${err.message}`;
+            setError(msg);
+            setLoading(false);
+            reject(new Error(msg));
+          },
+          { enableHighAccuracy: true }
+        );
+      }
+    });
+  };
+
+  return { getCurrentLocation, loading, error };
+};
 </file>
 
 <file path="src/hooks/useLumiBiz.ts">
+import { useQuery } from '@tanstack/react-query';
+import { supabase } from '../lib/supabase';
+import type { Database } from '../types/database.types';
 
+export type Cliente = Database['public']['Tables']['clientes']['Row'];
+export type Tenant = Database['public']['Tables']['tenants']['Row'];
+export type Plano = Database['public']['Tables']['planos']['Row'];
+export type Receita = Database['public']['Tables']['receitas']['Row'];
+export type Custo = Database['public']['Tables']['custos']['Row'];
+export type Requisicao = Database['public']['Tables']['requisicoes']['Row'];
+export type ItemCatalogo = Database['public']['Tables']['itens_catalogo']['Row'];
+export type Reembolso = Database['public']['Tables']['reembolsos']['Row'];
+export type Validade = Database['public']['Tables']['validades']['Row'];
+export type Servico = Database['public']['Tables']['servicos']['Row'];
+export type Chamado = Database['public']['Tables']['chamados']['Row'];
+export type VisitaComRelacionamentos = Database['public']['Tables']['visitas']['Row'] & {
+  clientes: Pick<Cliente, 'nome'> | null;
+  perfis: Pick<Database['public']['Tables']['perfis']['Row'], 'nome'> | null;
+};
+export type TenantComPlano = Tenant & {
+  planos: Pick<Plano, 'nome' | 'preco_mensal'> | null;
+};
+
+// Função que busca as visitas e seus relacionamentos
+async function fetchVisitas(): Promise<VisitaComRelacionamentos[]> {
+  const { data, error } = await supabase
+    .from('visitas')
+    .select(`
+      *,
+      clientes ( nome ),
+      perfis ( nome )
+    `)
+    .order('data_visita', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as VisitaComRelacionamentos[];
+}
+
+// Hook personalizado para usar na nossa página de Visitas
+export function useVisitas() {
+  return useQuery({
+    queryKey: ['visitas'],
+    queryFn: fetchVisitas,
+  });
+}
+
+// Função que busca os clientes
+export async function fetchClientes(): Promise<Cliente[]> {
+  const { data, error } = await supabase
+    .from('clientes')
+    .select('*')
+    .order('nome', { ascending: true }); // Ordem alfabética
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Cliente[];
+}
+
+// Hook personalizado para a página de Clientes
+export function useClientes() {
+  return useQuery({
+    queryKey: ['clientes'],
+    queryFn: fetchClientes,
+  });
+}
+
+async function fetchPlanos(): Promise<Plano[]> {
+  const { data, error } = await supabase
+    .from('planos')
+    .select('*')
+    .order('preco_mensal', { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Plano[];
+}
+
+export function usePlanos() {
+  return useQuery({
+    queryKey: ['planos'],
+    queryFn: fetchPlanos,
+  });
+}
+
+async function fetchTenants(): Promise<TenantComPlano[]> {
+  const { data, error } = await supabase
+    .from('tenants')
+    .select(`
+      *,
+      planos ( nome, preco_mensal )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as TenantComPlano[];
+}
+
+export function useTenants() {
+  return useQuery({
+    queryKey: ['tenants'],
+    queryFn: fetchTenants,
+  });
+}
+
+async function fetchReceitas(): Promise<Receita[]> {
+  const { data, error } = await supabase
+    .from('receitas')
+    .select('*')
+    .order('data_lancamento', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Receita[];
+}
+
+async function fetchCustos(): Promise<Custo[]> {
+  const { data, error } = await supabase
+    .from('custos')
+    .select('*')
+    .order('data_lancamento', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Custo[];
+}
+
+export function useReceitas() {
+  return useQuery({
+    queryKey: ['receitas'],
+    queryFn: fetchReceitas,
+  });
+}
+
+export function useCustos() {
+  return useQuery({
+    queryKey: ['custos'],
+    queryFn: fetchCustos,
+  });
+}
+
+async function fetchRequisicoes(): Promise<Requisicao[]> {
+  const { data, error } = await supabase
+    .from('requisicoes')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Requisicao[];
+}
+
+async function fetchItensCatalogo(): Promise<ItemCatalogo[]> {
+  const { data, error } = await supabase
+    .from('itens_catalogo')
+    .select('*')
+    .order('nome', { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as ItemCatalogo[];
+}
+
+async function fetchReembolsos(): Promise<Reembolso[]> {
+  const { data, error } = await supabase
+    .from('reembolsos')
+    .select('*')
+    .order('data_solicitacao', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Reembolso[];
+}
+
+async function fetchValidades(): Promise<Validade[]> {
+  const { data, error } = await supabase
+    .from('validades')
+    .select('*')
+    .order('data_validade', { ascending: true });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Validade[];
+}
+
+async function fetchServicos(): Promise<Servico[]> {
+  const { data, error } = await supabase
+    .from('servicos')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Servico[];
+}
+
+async function fetchChamados(): Promise<Chamado[]> {
+  const { data, error } = await supabase
+    .from('chamados')
+    .select('*')
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as Chamado[];
+}
+
+export function useRequisicoes() {
+  return useQuery({
+    queryKey: ['requisicoes'],
+    queryFn: fetchRequisicoes,
+  });
+}
+
+export function useItensCatalogo() {
+  return useQuery({
+    queryKey: ['itens-catalogo'],
+    queryFn: fetchItensCatalogo,
+  });
+}
+
+export function useReembolsos() {
+  return useQuery({
+    queryKey: ['reembolsos'],
+    queryFn: fetchReembolsos,
+  });
+}
+
+export function useValidades() {
+  return useQuery({
+    queryKey: ['validades'],
+    queryFn: fetchValidades,
+  });
+}
+
+export function useServicos() {
+  return useQuery({
+    queryKey: ['servicos'],
+    queryFn: fetchServicos,
+  });
+}
+
+export function useChamados() {
+  return useQuery({
+    queryKey: ['chamados'],
+    queryFn: fetchChamados,
+  });
+}
 </file>
 
 <file path="src/index.css">
-<!doctype html>
-<html lang="pt-BR">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" href="/icons/pwa-512x512.png" color="#ea1d2c">
-    
-    <!-- Caminhos Corrigidos: Removido o /public -->
-    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" sizes="180x180">
-    <link rel="mask-icon" href="/icons/Lumichef logo.png" color="#ea1d2c">
-
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
-    <meta name="theme-color" content="#ea1d2c">
-    <title>LumiBiz</title>
-    
-    <link rel="manifest" href="/manifest.json">
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.tsx"></script>
-  </body>
-</html>
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
 </file>
 
 <file path="src/lib/supabase.ts">
 import { createClient } from '@supabase/supabase-js';
+import { type Database } from '../types/database.types';
 
 const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
 const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-export const supabase = createClient(supabaseUrl, supabaseKey);
+// Adicionando a tipagem <Database> garante auto-complete em todo o sistema
+export const supabase = createClient<Database>(supabaseUrl, supabaseKey);
 </file>
 
 <file path="src/main.tsx">
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.tsx'
+import React from 'react';
+import ReactDOM from 'react-dom/client';
+import App from './App.tsx';
+import './index.css';
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 
-createRoot(document.getElementById('root')!).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+// Cria uma instância do QueryClient
+const queryClient = new QueryClient();
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <React.StrictMode>
+    {/* Envolve o App com o Provedor */}
+    <QueryClientProvider client={queryClient}>
+      <App />
+    </QueryClientProvider>
+  </React.StrictMode>
+);
 </file>
 
 <file path="src/pages/Visitas/VisitaCard.tsx">
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { supabase } from '../../lib/supabase';
 import { MapPin, Clock, Play, Square } from 'lucide-react'; // Ícones modernos
+import type { VisitaComRelacionamentos } from '../../hooks/useLumiBiz';
 
-export const VisitaCard = ({ visita, onUpdate }) => {
-  const[loading, setLoading] = useState(false);
+interface VisitaCardProps {
+  visita: VisitaComRelacionamentos;
+  onUpdate: () => void;
+}
+
+export const VisitaCard = ({ visita, onUpdate }: VisitaCardProps) => {
+  const [loading, setLoading] = useState(false);
 
   // Lógica nativa de Geolocalização
   const getCurrentLocation = (): Promise<GeolocationPosition> => {
@@ -742,12 +3863,12 @@ export const VisitaCard = ({ visita, onUpdate }) => {
 
       const { error } = await supabase
         .from('visitas')
-        .update(updateData)
+        .update(updateData as never)
         .eq('id', visita.id);
 
       if (error) throw error;
       onUpdate(); // Atualiza a lista Kanban
-    } catch (error) {
+    } catch {
       alert('Erro ao atualizar visita ou obter localização.');
     } finally {
       setLoading(false);
@@ -762,7 +3883,7 @@ export const VisitaCard = ({ visita, onUpdate }) => {
           <h4 className="font-bold text-gray-900 dark:text-white text-lg leading-tight">
             {visita.clientes?.nome}
           </h4>
-          <p className="text-sm text-[#BFA16A] font-medium">{visita.usuarios?.nome}</p>
+          <p className="text-sm text-[#BFA16A] font-medium">{visita.perfis?.nome ?? 'Sem responsável'}</p>
         </div>
         <span className={`text-xs font-semibold px-2 py-1 rounded-md ${
           visita.status === 'Agendada' ? 'bg-blue-100 text-blue-700' :
@@ -886,19 +4007,12 @@ export const VisitaCard = ({ visita, onUpdate }) => {
 </file>
 
 <file path="vite.config.ts">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [react()],
-})
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
 import { VitePWA } from 'vite-plugin-pwa';
 
 export default defineConfig({
-  plugins: [
+  plugins:[
     react(),
     VitePWA({
       registerType: 'autoUpdate',
@@ -907,18 +4021,18 @@ export default defineConfig({
         name: 'LumiBiz Gestão',
         short_name: 'LumiBiz',
         description: 'SaaS Multitenant para Gestão de Consultorias',
-        theme_color: '#373737', // Cor dark da marca
+        theme_color: '#373737',
         background_color: '#f3f4f6',
         display: 'standalone',
         orientation: 'portrait',
         icons:[
           {
-            src: 'pwa-192x192.png',
+            src: 'icons/pwa-192x192.png',
             sizes: '192x192',
             type: 'image/png'
           },
           {
-            src: 'pwa-512x512.png',
+            src: 'icons/pwa-512x512.png',
             sizes: '512x512',
             type: 'image/png',
             purpose: 'any maskable'
@@ -928,6 +4042,82 @@ export default defineConfig({
     })
   ]
 });
+</file>
+
+<file path="README.md">
+# React + TypeScript + Vite
+
+This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+
+Currently, two official plugins are available:
+
+- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
+- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+
+## React Compiler
+
+The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+
+## Expanding the ESLint configuration
+
+If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
+
+```js
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+
+      // Remove tseslint.configs.recommended and replace with this
+      tseslint.configs.recommendedTypeChecked,
+      // Alternatively, use this for stricter rules
+      tseslint.configs.strictTypeChecked,
+      // Optionally, add this for stylistic rules
+      tseslint.configs.stylisticTypeChecked,
+
+      // Other configs...
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
+
+You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
+
+```js
+// eslint.config.js
+import reactX from 'eslint-plugin-react-x'
+import reactDom from 'eslint-plugin-react-dom'
+
+export default defineConfig([
+  globalIgnores(['dist']),
+  {
+    files: ['**/*.{ts,tsx}'],
+    extends: [
+      // Other configs...
+      // Enable lint rules for React
+      reactX.configs['recommended-typescript'],
+      // Enable lint rules for React DOM
+      reactDom.configs.recommended,
+    ],
+    languageOptions: {
+      parserOptions: {
+        project: ['./tsconfig.node.json', './tsconfig.app.json'],
+        tsconfigRootDir: import.meta.dirname,
+      },
+      // other options...
+    },
+  },
+])
+```
 </file>
 
 </files>
