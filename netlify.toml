@@ -1,0 +1,18 @@
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# Configuração essencial para SPA (Single Page Application)
+# Redireciona todas as rotas para o index.html para o React Router funcionar
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+# Headers de Segurança e Permissões
+[[headers]]
+  for = "/*"
+  [headers.values]
+    # Permite Geolocalização e acesso a dados cruzados (CORS)
+    Permissions-Policy = "geolocation=(self), microphone=(), camera=()"
+    Access-Control-Allow-Origin = "*"
