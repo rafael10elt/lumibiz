@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertTriangle, CalendarClock, Plus, ShieldAlert } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useValidades } from '../../hooks/useLumiBiz';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -14,6 +15,7 @@ export function ValidadesPage() {
   const [statusNovo, setStatusNovo] = useState<'pendente' | 'em_dia' | 'vencido'>('pendente');
   const [statusFiltro, setStatusFiltro] = useState<'todos' | 'pendente' | 'em_dia' | 'vencido'>('todos');
   const [saving, setSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const canManage = ['super_admin', 'admin', 'gestor'].includes(perfil?.role || '');
 
   const rows = useMemo(() => (data || []).filter((item) => statusFiltro === 'todos' || item.status === statusFiltro), [data, statusFiltro]);
@@ -57,8 +59,6 @@ export function ValidadesPage() {
   };
 
   const excluirValidade = async (id: string) => {
-    if (!confirm('Deseja excluir esta validade?')) return;
-
     const { error: deleteError } = await supabase.from('validades').delete().eq('id', id);
     if (deleteError) {
       alert(`Erro ao excluir validade: ${deleteError.message}`);
@@ -115,7 +115,7 @@ export function ValidadesPage() {
               key={status}
               onClick={() => setStatusFiltro(status)}
               className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                statusFiltro === status ? 'bg-gradient-to-r from-brand-blue to-brand-orange text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
+                statusFiltro === status ? 'bg-gradient-to-r from-brand-blue to-brand-blue-deep text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
               }`}
             >
               {status}
@@ -146,7 +146,7 @@ export function ValidadesPage() {
                     <option value="em_dia">em_dia</option>
                     <option value="vencido">vencido</option>
                   </select>
-                  <button onClick={() => excluirValidade(item.id)} className="btn-ghost rounded-2xl border border-border-subtle px-4 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                  <button onClick={() => setPendingDeleteId(item.id)} className="btn-ghost rounded-2xl border border-border-subtle px-4 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
                     Excluir
                   </button>
                 </div>
@@ -155,6 +155,20 @@ export function ValidadesPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="Excluir validade"
+        description="Deseja excluir esta validade?"
+        confirmText="Excluir"
+        confirmVariant="danger"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) void excluirValidade(id);
+        }}
+      />
     </div>
   );
 }

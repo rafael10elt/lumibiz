@@ -2,6 +2,7 @@ import { useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { Building2, Plus, Search, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { type Cliente, useClientes } from '../../hooks/useLumiBiz';
 import { supabase } from '../../lib/supabase';
 import { cn } from '../../lib/utils';
@@ -23,6 +24,7 @@ export function ClientesPage() {
   const [categoria, setCategoria] = useState<'Contrato' | 'Lead' | 'Servico'>('Lead');
   const [clienteStatus, setClienteStatus] = useState<'ativo' | 'inativo'>('ativo');
   const [saving, setSaving] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Cliente | null>(null);
 
   const canManage = ['super_admin', 'admin'].includes(perfil?.role || '');
 
@@ -108,9 +110,6 @@ export function ClientesPage() {
   };
 
   const deleteCliente = async (cliente: Cliente) => {
-    const confirmed = confirm(`Deseja excluir o cliente "${cliente.nome}"?`);
-    if (!confirmed) return;
-
     const { error } = await supabase.from('clientes').delete().eq('id', cliente.id);
     if (error) {
       alert(`Erro ao excluir cliente: ${error.message}`);
@@ -188,7 +187,7 @@ export function ClientesPage() {
                     onClick={() => setCategoryFilter(item)}
                     className={cn(
                       'rounded-2xl px-4 py-2 text-sm font-semibold transition',
-                      categoryFilter === item ? 'bg-gradient-to-r from-brand-orange to-brand-orange-deep text-white shadow-soft' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
+                      categoryFilter === item ? 'bg-gradient-to-r from-brand-blue to-brand-blue-deep text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
                     )}
                   >
                     {item}
@@ -218,7 +217,7 @@ export function ClientesPage() {
           ) : (
             <div className="grid grid-cols-1 gap-5 md:grid-cols-2 2xl:grid-cols-3">
               {filteredClientes.map((cliente) => (
-                <ClienteCard key={cliente.id} cliente={cliente} canManage={canManage} onEdit={openEdit} onDelete={deleteCliente} />
+                <ClienteCard key={cliente.id} cliente={cliente} canManage={canManage} onEdit={openEdit} onDelete={setPendingDelete} />
               ))}
             </div>
           )}
@@ -278,6 +277,20 @@ export function ClientesPage() {
           </div>
         </section>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDelete)}
+        title="Excluir cliente"
+        description={pendingDelete ? `Deseja excluir o cliente "${pendingDelete.nome}"?` : ''}
+        confirmText="Excluir"
+        confirmVariant="danger"
+        onCancel={() => setPendingDelete(null)}
+        onConfirm={() => {
+          const cliente = pendingDelete;
+          setPendingDelete(null);
+          if (cliente) void deleteCliente(cliente);
+        }}
+      />
     </div>
   );
 }

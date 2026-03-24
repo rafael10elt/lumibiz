@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { MoonStar, ShieldCheck, Sparkles, SunMedium } from 'lucide-react';
 import { supabase } from '../lib/supabase';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTheme } from '../contexts/ThemeContext';
 import { BrandMark } from '../components/layout/BrandMark';
 
@@ -99,6 +99,12 @@ export const Login = () => {
             <button type="submit" disabled={loading} className="btn-primary w-full">
               {loading ? <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" /> : 'Entrar no sistema'}
             </button>
+
+            <div className="flex justify-end">
+              <Link to="/recuperar-senha" className="text-sm font-medium text-brand-blue hover:text-brand-blue-deep">
+                Esqueci minha senha
+              </Link>
+            </div>
 
             <div className="surface-subtle p-4">
               <p className="text-sm font-medium text-app-primary">Tema atual: {theme === 'light' ? 'Claro' : 'Escuro'}</p>

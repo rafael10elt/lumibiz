@@ -2,7 +2,7 @@ import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { MailPlus, Pencil, Search, ShieldPlus, UserRound, Users } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
-import { useConvitesUsuarios, usePerfis } from '../../hooks/useLumiBiz';
+import { useConvitesUsuarios, usePerfis, useTenantAssinatura } from '../../hooks/useLumiBiz';
 import { supabase } from '../../lib/supabase';
 
 export function PerfilPage() {
@@ -10,6 +10,7 @@ export function PerfilPage() {
   const { perfil: currentPerfil } = useAuth();
   const { data: perfis, isLoading, isError, error } = usePerfis();
   const { data: convites, isLoading: convitesLoading, isError: convitesError, error: convitesErrorData } = useConvitesUsuarios();
+  const { data: assinaturaTenant } = useTenantAssinatura(currentPerfil?.tenant_id || undefined);
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<'Todos' | 'ativo' | 'inativo'>('Todos');
   const [editingId, setEditingId] = useState<string | null>(null);
@@ -24,11 +25,13 @@ export function PerfilPage() {
   const [inviteSaving, setInviteSaving] = useState(false);
 
   const canManage = ['super_admin', 'admin'].includes(currentPerfil?.role || '');
+  const userLimit = assinaturaTenant?.tenants?.user_limit || 0;
 
   const basePerfis = useMemo(() => {
     if ((perfis || []).length > 0) return perfis || [];
     return currentPerfil ? [currentPerfil] : [];
   }, [perfis, currentPerfil]);
+  const totalGerenciado = basePerfis.length + (convites || []).filter((item) => item.status === 'pendente').length;
 
   const rows = useMemo(
     () =>
@@ -69,6 +72,11 @@ export function PerfilPage() {
   const createInvite = async () => {
     if (!currentPerfil?.tenant_id || !currentPerfil.id || !inviteName.trim() || !inviteEmail.trim()) {
       alert('Preencha nome e email do convite.');
+      return;
+    }
+
+    if (userLimit > 0 && totalGerenciado >= userLimit) {
+      alert('Limite máximo de usuários do tenant atingido para o plano atual.');
       return;
     }
 
@@ -168,6 +176,7 @@ export function PerfilPage() {
             {canManage
               ? 'Convites criam a trilha administrativa do usuario. A etapa de aceite e signup ainda sera conectada na proxima iteracao.'
               : 'Visualizacao liberada para consulta do proprio tenant.'}
+            {canManage && userLimit > 0 ? <p className="mt-3 font-medium text-app-primary">Uso atual: {totalGerenciado} de {userLimit} usuarios contratados.</p> : null}
           </div>
         </div>
 

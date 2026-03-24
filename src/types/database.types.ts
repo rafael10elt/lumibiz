@@ -36,6 +36,10 @@ export type Database = {
           nome_fantasia: string | null;
           razao_social: string | null;
           cnpj: string | null;
+          email: string | null;
+          telefone: string | null;
+          endereco: string | null;
+          logo_url: string | null;
           plano_id: string | null;
           status: string;
           user_limit: number | null;
@@ -46,6 +50,10 @@ export type Database = {
           nome_fantasia?: string | null;
           razao_social?: string | null;
           cnpj?: string | null;
+          email?: string | null;
+          telefone?: string | null;
+          endereco?: string | null;
+          logo_url?: string | null;
           plano_id?: string | null;
           status?: string;
           user_limit?: number | null;
@@ -56,6 +64,10 @@ export type Database = {
           nome_fantasia?: string | null;
           razao_social?: string | null;
           cnpj?: string | null;
+          email?: string | null;
+          telefone?: string | null;
+          endereco?: string | null;
+          logo_url?: string | null;
           plano_id?: string | null;
           status?: string;
           user_limit?: number | null;
@@ -642,6 +654,153 @@ export type Database = {
           invited_by?: string | null;
           expires_at?: string;
           created_at?: string;
+        };
+        Relationships: [];
+      };
+      tenant_modulos: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          modulo: string;
+          enabled: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          modulo: string;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          modulo?: string;
+          enabled?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tenant_assinaturas: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          plano_id: string | null;
+          status: string;
+          valor_mensal: number;
+          proximo_vencimento: string | null;
+          pix_qrcode_url: string | null;
+          pix_copia_cola: string | null;
+          pix_chave: string | null;
+          observacoes: string | null;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          plano_id?: string | null;
+          status?: string;
+          valor_mensal?: number;
+          proximo_vencimento?: string | null;
+          pix_qrcode_url?: string | null;
+          pix_copia_cola?: string | null;
+          pix_chave?: string | null;
+          observacoes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          plano_id?: string | null;
+          status?: string;
+          valor_mensal?: number;
+          proximo_vencimento?: string | null;
+          pix_qrcode_url?: string | null;
+          pix_copia_cola?: string | null;
+          pix_chave?: string | null;
+          observacoes?: string | null;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [];
+      };
+      tenant_pagamentos: {
+        Row: {
+          id: string;
+          tenant_id: string;
+          assinatura_id: string | null;
+          valor: number;
+          data_pagamento: string;
+          status: string;
+          observacao: string | null;
+          comprovante_url: string | null;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          tenant_id: string;
+          assinatura_id?: string | null;
+          valor: number;
+          data_pagamento?: string;
+          status?: string;
+          observacao?: string | null;
+          comprovante_url?: string | null;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          tenant_id?: string;
+          assinatura_id?: string | null;
+          valor?: number;
+          data_pagamento?: string;
+          status?: string;
+          observacao?: string | null;
+          comprovante_url?: string | null;
+          created_at?: string;
+        };
+        Relationships: [];
+      };
+      ajuda_documentos: {
+        Row: {
+          id: string;
+          titulo: string;
+          categoria: string;
+          descricao: string | null;
+          arquivo_url: string | null;
+          storage_path: string | null;
+          icone: string;
+          ordem: number;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          titulo: string;
+          categoria?: string;
+          descricao?: string | null;
+          arquivo_url?: string | null;
+          storage_path?: string | null;
+          icone?: string;
+          ordem?: number;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          titulo?: string;
+          categoria?: string;
+          descricao?: string | null;
+          arquivo_url?: string | null;
+          storage_path?: string | null;
+          icone?: string;
+          ordem?: number;
+          created_at?: string;
+          updated_at?: string;
         };
         Relationships: [];
       };

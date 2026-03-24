@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { AlertCircle, Headphones, Plus, Siren } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useChamados } from '../../hooks/useLumiBiz';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -14,6 +15,7 @@ export function ChamadosPage() {
   const [statusNovo, setStatusNovo] = useState<'aberto' | 'em_andamento' | 'resolvido'>('aberto');
   const [statusFiltro, setStatusFiltro] = useState<'todos' | 'aberto' | 'em_andamento' | 'resolvido'>('todos');
   const [saving, setSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const canManage = ['super_admin', 'admin', 'gestor'].includes(perfil?.role || '');
 
   const rows = useMemo(() => (data || []).filter((item) => statusFiltro === 'todos' || item.status === statusFiltro), [data, statusFiltro]);
@@ -56,8 +58,6 @@ export function ChamadosPage() {
   };
 
   const excluirChamado = async (id: string) => {
-    if (!confirm('Deseja excluir este chamado?')) return;
-
     const { error: deleteError } = await supabase.from('chamados').delete().eq('id', id);
     if (deleteError) {
       alert(`Erro ao excluir chamado: ${deleteError.message}`);
@@ -118,7 +118,7 @@ export function ChamadosPage() {
               key={status}
               onClick={() => setStatusFiltro(status)}
               className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                statusFiltro === status ? 'bg-gradient-to-r from-brand-blue to-brand-orange text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
+                statusFiltro === status ? 'bg-gradient-to-r from-brand-blue to-brand-blue-deep text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
               }`}
             >
               {status}
@@ -161,7 +161,7 @@ export function ChamadosPage() {
                     <option value="em_andamento">em_andamento</option>
                     <option value="resolvido">resolvido</option>
                   </select>
-                  <button onClick={() => excluirChamado(item.id)} className="btn-ghost rounded-2xl border border-border-subtle px-4 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                  <button onClick={() => setPendingDeleteId(item.id)} className="btn-ghost rounded-2xl border border-border-subtle px-4 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
                     Excluir
                   </button>
                 </div>
@@ -170,6 +170,20 @@ export function ChamadosPage() {
           ))}
         </div>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="Excluir chamado"
+        description="Deseja excluir este chamado?"
+        confirmText="Excluir"
+        confirmVariant="danger"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) void excluirChamado(id);
+        }}
+      />
     </div>
   );
 }

@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis
 } from 'recharts';
+import { useAuth } from '../../contexts/AuthContext';
 import { useChamados, useClientes, useCustos, useReceitas, useVisitas } from '../../hooks/useLumiBiz';
 import { formatCurrency, formatDate } from '../../lib/utils';
 
@@ -28,6 +29,7 @@ const startOfPeriod = (period: Period) => {
 };
 
 export function DashboardPage() {
+  const { perfil } = useAuth();
   const [tab, setTab] = useState<DashboardTab>('balanco');
   const [statusFilter, setStatusFilter] = useState('');
   const [startDate, setStartDate] = useState('');
@@ -163,20 +165,59 @@ export function DashboardPage() {
   ];
 
   const exportReport = () => {
-    const payload = {
-      periodo: { statusFilter, startDate, endDate },
-      resumo,
-      visitas: visitasResumo,
-      geradoEm: new Date().toISOString()
-    };
+    const printWindow = window.open('', '_blank', 'width=960,height=720');
+    if (!printWindow) return;
 
-    const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = `dashboard-${new Date().toISOString().slice(0, 10)}.json`;
-    anchor.click();
-    URL.revokeObjectURL(url);
+    const generatedAt = new Intl.DateTimeFormat('pt-BR', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    }).format(new Date());
+
+    const html = `
+      <!doctype html>
+      <html lang="pt-BR">
+        <head>
+          <meta charset="utf-8" />
+          <title>Relatorio LumiBiz</title>
+          <style>
+            body { font-family: Arial, sans-serif; color: #0f172a; margin: 32px; }
+            h1, h2 { margin: 0 0 12px; }
+            p { margin: 0 0 8px; }
+            .grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; margin: 24px 0; }
+            .card { border: 1px solid #cbd5e1; border-radius: 16px; padding: 16px; }
+            .muted { color: #475569; }
+            ul { padding-left: 18px; }
+          </style>
+        </head>
+        <body>
+          ${perfil?.tenants?.logo_url ? `<img src="${perfil.tenants.logo_url}" alt="Logo do tenant" style="width:72px;height:72px;object-fit:cover;border-radius:16px;margin-bottom:16px;" />` : ''}
+          <h1>Relatorio do Dashboard LumiBiz</h1>
+          <p><strong>Tenant:</strong> ${perfil?.tenants?.nome_fantasia || 'Tenant atual'}</p>
+          <p class="muted">Gerado em ${generatedAt}</p>
+          <p class="muted">Periodo: ${startDate || 'inicio livre'} ate ${endDate || 'fim livre'}</p>
+          <div class="grid">
+            <div class="card"><h2>Saldo</h2><p>${formatCurrency(resumo.saldo)}</p></div>
+            <div class="card"><h2>Receitas</h2><p>${formatCurrency(resumo.totalReceitas)}</p></div>
+            <div class="card"><h2>Custos</h2><p>${formatCurrency(resumo.totalCustos)}</p></div>
+            <div class="card"><h2>Chamados abertos</h2><p>${resumo.chamadosAbertos}</p></div>
+          </div>
+          <h2>Resumo de visitas</h2>
+          <ul>
+            <li>Agendadas: ${visitasResumo.agendadas}</li>
+            <li>Em andamento: ${visitasResumo.andamento}</li>
+            <li>Concluidas: ${visitasResumo.concluidas}</li>
+          </ul>
+          <h2>Insights</h2>
+          <ul>${insights.map((item) => `<li>${item}</li>`).join('')}</ul>
+        </body>
+      </html>
+    `;
+
+    printWindow.document.open();
+    printWindow.document.write(html);
+    printWindow.document.close();
+    printWindow.focus();
+    printWindow.print();
   };
 
   return (
@@ -218,7 +259,7 @@ export function DashboardPage() {
               onClick={() => setTab(value as DashboardTab)}
               className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
                 tab === value
-                  ? 'bg-gradient-to-r from-brand-blue to-brand-orange text-white shadow-glow'
+                  ? 'bg-gradient-to-r from-brand-blue to-brand-blue-deep text-white shadow-glow'
                   : 'text-app-secondary hover:bg-surface-muted hover:text-app-primary'
               }`}
             >
@@ -390,11 +431,11 @@ export function DashboardPage() {
 
       {showInsights && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
-          <div className="surface-panel w-full max-w-2xl p-6 sm:p-7">
+          <div className="w-full max-w-2xl rounded-[28px] border border-border-subtle bg-white p-6 text-slate-900 shadow-2xl dark:bg-slate-900 dark:text-white sm:p-7">
             <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-2xl font-semibold tracking-tight text-app-primary">Insights do dashboard</h3>
-                <p className="mt-1 text-sm text-app-secondary">Leitura automatica a partir do recorte filtrado.</p>
+                <h3 className="text-2xl font-semibold tracking-tight text-slate-900 dark:text-white">Insights do dashboard</h3>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">Leitura automatica a partir do recorte filtrado.</p>
               </div>
               <button onClick={() => setShowInsights(false)} className="btn-ghost">
                 Fechar
@@ -402,7 +443,7 @@ export function DashboardPage() {
             </div>
             <div className="space-y-3">
               {insights.map((item) => (
-                <div key={item} className="surface-subtle p-4 text-sm leading-6 text-app-primary">
+                <div key={item} className="rounded-2xl border border-slate-200 bg-slate-50 p-4 text-sm leading-6 text-slate-800 dark:border-slate-800 dark:bg-slate-950/80 dark:text-slate-100">
                   {item}
                 </div>
               ))}

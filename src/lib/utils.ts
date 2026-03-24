@@ -15,3 +15,8 @@ export function formatCurrency(value: number) {
 export function formatDate(value: string) {
   return new Intl.DateTimeFormat('pt-BR').format(new Date(value));
 }
+
+export function getFirstName(value?: string | null) {
+  if (!value) return '';
+  return value.trim().split(/\s+/)[0] || '';
+}

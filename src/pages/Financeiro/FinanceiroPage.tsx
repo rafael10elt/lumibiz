@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { ArrowDownCircle, ArrowUpCircle, Landmark, Plus, Trash2, Wallet } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useAuth } from '../../contexts/AuthContext';
 import { useClientes, useCustos, useReceitas } from '../../hooks/useLumiBiz';
 import { supabase } from '../../lib/supabase';
@@ -28,6 +29,7 @@ export function FinanceiroPage() {
   const [statusNovo, setStatusNovo] = useState<'Pendente' | 'Pago'>('Pendente');
   const [observacao, setObservacao] = useState('');
   const [saving, setSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const receitasFiltradas = useMemo(
     () =>
@@ -110,7 +112,6 @@ export function FinanceiroPage() {
   };
 
   const deleteLancamento = async (id: string) => {
-    if (!confirm('Deseja excluir este lancamento?')) return;
     const result = tab === 'receitas' ? await supabase.from('receitas').delete().eq('id', id) : await supabase.from('custos').delete().eq('id', id);
 
     if (result.error) {
@@ -155,7 +156,7 @@ export function FinanceiroPage() {
           <button
             onClick={() => setTab('custos')}
             className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
-              tab === 'custos' ? 'bg-gradient-to-r from-brand-orange to-brand-orange-deep text-white shadow-soft' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
+              tab === 'custos' ? 'bg-gradient-to-r from-brand-blue to-brand-blue-deep text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
             }`}
           >
             Custos
@@ -286,7 +287,7 @@ export function FinanceiroPage() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button onClick={() => deleteLancamento(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                      <button onClick={() => setPendingDeleteId(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
                         <Trash2 size={16} />
                         Excluir
                       </button>
@@ -305,7 +306,7 @@ export function FinanceiroPage() {
                       </span>
                     </td>
                     <td className="px-4 py-4 text-right">
-                      <button onClick={() => deleteLancamento(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                      <button onClick={() => setPendingDeleteId(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
                         <Trash2 size={16} />
                         Excluir
                       </button>
@@ -331,14 +332,14 @@ export function FinanceiroPage() {
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xl font-semibold text-brand-blue">{formatCurrency(Number(row.valor || 0))}</span>
-                <button onClick={() => deleteLancamento(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                <button onClick={() => setPendingDeleteId(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
                   <Trash2 size={16} />
                   Excluir
                 </button>
               </div>
             </article>
           ))}
-        {tab === 'custos' &&
+      {tab === 'custos' &&
           custosFiltrados.map((row) => (
             <article key={row.id} className="surface-panel p-5">
               <div className="flex items-start justify-between gap-4">
@@ -350,7 +351,7 @@ export function FinanceiroPage() {
               </div>
               <div className="mt-4 flex items-center justify-between">
                 <span className="text-xl font-semibold text-brand-orange">{formatCurrency(Number(row.valor || 0))}</span>
-                <button onClick={() => deleteLancamento(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                <button onClick={() => setPendingDeleteId(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
                   <Trash2 size={16} />
                   Excluir
                 </button>
@@ -358,6 +359,20 @@ export function FinanceiroPage() {
             </article>
           ))}
       </section>
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="Excluir lancamento"
+        description="Deseja excluir este lancamento financeiro?"
+        confirmText="Excluir"
+        confirmVariant="danger"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) void deleteLancamento(id);
+        }}
+      />
     </div>
   );
 }

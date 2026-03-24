@@ -135,7 +135,7 @@ export function VisitasPage() {
                   key={status}
                   onClick={() => setStatusFilter(status)}
                   className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                    statusFilter === status ? 'bg-gradient-to-r from-brand-orange to-brand-orange-deep text-white shadow-soft' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
+                    statusFilter === status ? 'bg-gradient-to-r from-brand-blue to-brand-blue-deep text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
                   }`}
                 >
                   {status}

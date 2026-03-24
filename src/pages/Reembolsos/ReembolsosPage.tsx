@@ -1,6 +1,7 @@
 import { useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
 import { BanknoteArrowUp, CircleDollarSign, Plus, ReceiptText, Trash2 } from 'lucide-react';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useReembolsos } from '../../hooks/useLumiBiz';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -16,6 +17,7 @@ export function ReembolsosPage() {
   const [statusNovo, setStatusNovo] = useState<'solicitado' | 'aprovado' | 'pago' | 'recusado'>('solicitado');
   const [statusFiltro, setStatusFiltro] = useState<'todos' | 'solicitado' | 'aprovado' | 'pago' | 'recusado'>('todos');
   const [saving, setSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
   const canManage = ['super_admin', 'admin', 'gestor'].includes(perfil?.role || '');
 
   const rows = useMemo(() => (data || []).filter((item) => statusFiltro === 'todos' || item.status === statusFiltro), [data, statusFiltro]);
@@ -63,8 +65,6 @@ export function ReembolsosPage() {
   };
 
   const excluirReembolso = async (id: string) => {
-    if (!confirm('Deseja excluir este reembolso?')) return;
-
     const { error: deleteError } = await supabase.from('reembolsos').delete().eq('id', id);
     if (deleteError) {
       alert(`Erro ao excluir reembolso: ${deleteError.message}`);
@@ -125,7 +125,7 @@ export function ReembolsosPage() {
               key={status}
               onClick={() => setStatusFiltro(status)}
               className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
-                statusFiltro === status ? 'bg-gradient-to-r from-brand-blue to-brand-orange text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
+                statusFiltro === status ? 'bg-gradient-to-r from-brand-blue to-brand-blue-deep text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
               }`}
             >
               {status}
@@ -171,7 +171,7 @@ export function ReembolsosPage() {
                       <td className="px-4 py-4 text-app-secondary">{item.motivo || '-'}</td>
                       {canManage && (
                         <td className="px-4 py-4 text-right">
-                          <button onClick={() => excluirReembolso(item.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                          <button onClick={() => setPendingDeleteId(item.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
                             <Trash2 size={16} />
                             Excluir
                           </button>
@@ -200,6 +200,20 @@ export function ReembolsosPage() {
           </section>
         </>
       )}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="Excluir reembolso"
+        description="Deseja excluir este reembolso?"
+        confirmText="Excluir"
+        confirmVariant="danger"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) void excluirReembolso(id);
+        }}
+      />
     </div>
   );
 }

@@ -19,6 +19,10 @@ export type Atestado = Database['public']['Tables']['atestados']['Row'];
 export type EpiEntrega = Database['public']['Tables']['epi_entregas']['Row'];
 export type AtivoColaborador = Database['public']['Tables']['ativos_colaboradores']['Row'];
 export type ConviteUsuario = Database['public']['Tables']['convites_usuarios']['Row'];
+export type TenantModulo = Database['public']['Tables']['tenant_modulos']['Row'];
+export type TenantAssinatura = Database['public']['Tables']['tenant_assinaturas']['Row'];
+export type TenantPagamento = Database['public']['Tables']['tenant_pagamentos']['Row'];
+export type AjudaDocumento = Database['public']['Tables']['ajuda_documentos']['Row'];
 
 export type VisitaComRelacionamentos = Database['public']['Tables']['visitas']['Row'] & {
   clientes: Pick<Cliente, 'nome'> | null;
@@ -31,6 +35,11 @@ export type TenantComPlano = Tenant & {
 
 export type RHJoin<T> = T & {
   perfis: Pick<Perfil, 'nome' | 'email'> | null;
+};
+
+export type AssinaturaComRelacoes = TenantAssinatura & {
+  tenants: Pick<Tenant, 'nome_fantasia' | 'status' | 'user_limit'> | null;
+  planos: Pick<Plano, 'nome' | 'preco_mensal' | 'user_limit'> | null;
 };
 
 async function withTimeout<T>(promise: PromiseLike<T>, label: string, timeoutMs = 12000): Promise<T> {
@@ -95,6 +104,12 @@ async function fetchTenants(): Promise<TenantComPlano[]> {
 
   if (error) throw new Error(error.message);
   return (data || []) as TenantComPlano[];
+}
+
+async function fetchTenantById(tenantId: string): Promise<Tenant | null> {
+  const { data, error } = await supabase.from('tenants').select('*').eq('id', tenantId).maybeSingle();
+  if (error) throw new Error(error.message);
+  return (data || null) as Tenant | null;
 }
 
 async function fetchReceitas(): Promise<Receita[]> {
@@ -220,6 +235,65 @@ async function fetchConvitesUsuarios(): Promise<ConviteUsuario[]> {
   return (data || []) as ConviteUsuario[];
 }
 
+async function fetchTenantAssinaturas(): Promise<AssinaturaComRelacoes[]> {
+  const { data, error } = await supabase
+    .from('tenant_assinaturas')
+    .select(`
+      *,
+      tenants ( nome_fantasia, status, user_limit ),
+      planos ( nome, preco_mensal, user_limit )
+    `)
+    .order('created_at', { ascending: false });
+
+  if (error) throw new Error(error.message);
+  return (data || []) as AssinaturaComRelacoes[];
+}
+
+async function fetchTenantAssinaturaByTenant(tenantId: string): Promise<AssinaturaComRelacoes | null> {
+  const { data, error } = await supabase
+    .from('tenant_assinaturas')
+    .select(`
+      *,
+      tenants ( nome_fantasia, status, user_limit ),
+      planos ( nome, preco_mensal, user_limit )
+    `)
+    .eq('tenant_id', tenantId)
+    .maybeSingle();
+
+  if (error) throw new Error(error.message);
+  return (data || null) as AssinaturaComRelacoes | null;
+}
+
+async function fetchTenantPagamentos(): Promise<TenantPagamento[]> {
+  const { data, error } = await supabase.from('tenant_pagamentos').select('*').order('data_pagamento', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as TenantPagamento[];
+}
+
+async function fetchTenantPagamentosByTenant(tenantId: string): Promise<TenantPagamento[]> {
+  const { data, error } = await supabase.from('tenant_pagamentos').select('*').eq('tenant_id', tenantId).order('data_pagamento', { ascending: false });
+  if (error) throw new Error(error.message);
+  return (data || []) as TenantPagamento[];
+}
+
+async function fetchTenantModulos(): Promise<TenantModulo[]> {
+  const { data, error } = await supabase.from('tenant_modulos').select('*').order('modulo', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []) as TenantModulo[];
+}
+
+async function fetchTenantModulosByTenant(tenantId: string): Promise<TenantModulo[]> {
+  const { data, error } = await supabase.from('tenant_modulos').select('*').eq('tenant_id', tenantId).order('modulo', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []) as TenantModulo[];
+}
+
+async function fetchAjudaDocumentos(): Promise<AjudaDocumento[]> {
+  const { data, error } = await supabase.from('ajuda_documentos').select('*').order('ordem', { ascending: true }).order('titulo', { ascending: true });
+  if (error) throw new Error(error.message);
+  return (data || []) as AjudaDocumento[];
+}
+
 export function useVisitas() {
   return useQuery({ queryKey: ['visitas'], queryFn: fetchVisitas });
 }
@@ -242,6 +316,14 @@ export function usePlanos() {
 
 export function useTenants() {
   return useQuery({ queryKey: ['tenants'], queryFn: fetchTenants });
+}
+
+export function useTenant(tenantId?: string) {
+  return useQuery({
+    queryKey: ['tenant', tenantId],
+    queryFn: () => fetchTenantById(tenantId!),
+    enabled: Boolean(tenantId)
+  });
 }
 
 export function useReceitas() {
@@ -294,4 +376,36 @@ export function useAtivosColaboradores() {
 
 export function useConvitesUsuarios() {
   return useQuery({ queryKey: ['perfis', 'convites'], queryFn: fetchConvitesUsuarios });
+}
+
+export function useTenantAssinaturas() {
+  return useQuery({ queryKey: ['saas', 'assinaturas'], queryFn: fetchTenantAssinaturas });
+}
+
+export function useTenantAssinatura(tenantId?: string) {
+  return useQuery({
+    queryKey: ['saas', 'assinaturas', tenantId],
+    queryFn: () => fetchTenantAssinaturaByTenant(tenantId!),
+    enabled: Boolean(tenantId)
+  });
+}
+
+export function useTenantPagamentos(tenantId?: string) {
+  return useQuery({
+    queryKey: ['saas', 'pagamentos', tenantId ?? 'all'],
+    queryFn: () => (tenantId ? fetchTenantPagamentosByTenant(tenantId) : fetchTenantPagamentos()),
+    enabled: tenantId === undefined || Boolean(tenantId)
+  });
+}
+
+export function useTenantModulos(tenantId?: string) {
+  return useQuery({
+    queryKey: ['saas', 'modulos', tenantId ?? 'all'],
+    queryFn: () => (tenantId ? fetchTenantModulosByTenant(tenantId) : fetchTenantModulos()),
+    enabled: tenantId === undefined || Boolean(tenantId)
+  });
+}
+
+export function useAjudaDocumentos() {
+  return useQuery({ queryKey: ['ajuda', 'documentos'], queryFn: fetchAjudaDocumentos });
 }

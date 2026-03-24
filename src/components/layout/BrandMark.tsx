@@ -3,14 +3,21 @@ import { cn } from '../../lib/utils';
 interface BrandMarkProps {
   compact?: boolean;
   className?: string;
+  logoUrl?: string | null;
 }
 
-export function BrandMark({ compact = false, className }: BrandMarkProps) {
+export function BrandMark({ compact = false, className, logoUrl }: BrandMarkProps) {
   return (
     <div className={cn('flex items-center gap-3', className)}>
       <div className="relative flex h-12 w-12 items-center justify-center overflow-hidden rounded-2xl bg-gradient-to-br from-brand-blue via-brand-blue-deep to-brand-orange shadow-glow">
-        <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.24),transparent_42%,rgba(255,255,255,0.06)_72%,transparent)]" />
-        <span className="relative text-xl font-black tracking-tight text-white">LB</span>
+        {logoUrl ? (
+          <img src={logoUrl} alt="Logo do tenant" className="h-full w-full object-cover" />
+        ) : (
+          <>
+            <div className="absolute inset-0 bg-[linear-gradient(135deg,rgba(255,255,255,0.24),transparent_42%,rgba(255,255,255,0.06)_72%,transparent)]" />
+            <span className="relative text-xl font-black tracking-tight text-white">LB</span>
+          </>
+        )}
       </div>
       {!compact && (
         <div>

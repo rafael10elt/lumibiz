@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ConfirmDialog } from '../../components/ui/ConfirmDialog';
 import { useItensCatalogo, usePerfis, useRequisicoes } from '../../hooks/useLumiBiz';
 import { useAuth } from '../../contexts/AuthContext';
 import { supabase } from '../../lib/supabase';
@@ -23,6 +24,7 @@ export function RequisicoesPage() {
   const [observacoes, setObservacoes] = useState('');
   const [statusNova, setStatusNova] = useState<'aberta' | 'aprovada' | 'recusada'>('aberta');
   const [saving, setSaving] = useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = useState<string | null>(null);
 
   const loading = aba === 'requisicoes' ? loadingReq : loadingItens;
   const hasError = aba === 'requisicoes' ? errorReq : errorItens;
@@ -80,7 +82,6 @@ export function RequisicoesPage() {
   };
 
   const excluirRequisicao = async (id: string) => {
-    if (!confirm('Deseja excluir esta requisicao?')) return;
     const { error: deleteError } = await supabase.from('requisicoes').delete().eq('id', id);
     if (deleteError) {
       alert(`Erro ao excluir requisicao: ${deleteError.message}`);
@@ -202,7 +203,7 @@ export function RequisicoesPage() {
                       )}
                     </td>
                     <td className="px-6 py-4">
-                      {canManage && <button onClick={() => excluirRequisicao(item.id)} className="text-red-500 hover:text-red-600">Excluir</button>}
+                      {canManage && <button onClick={() => setPendingDeleteId(item.id)} className="text-red-500 hover:text-red-600">Excluir</button>}
                     </td>
                   </tr>
                 ))}
@@ -252,6 +253,20 @@ export function RequisicoesPage() {
 
       {loading && <div className="rounded-xl bg-white p-6 text-gray-500 shadow dark:bg-gray-800">Carregando...</div>}
       {hasError && <div className="rounded-xl bg-white p-6 text-red-500 shadow dark:bg-gray-800">Erro: {error?.message}</div>}
+
+      <ConfirmDialog
+        open={Boolean(pendingDeleteId)}
+        title="Excluir requisicao"
+        description="Deseja excluir esta requisicao?"
+        confirmText="Excluir"
+        confirmVariant="danger"
+        onCancel={() => setPendingDeleteId(null)}
+        onConfirm={() => {
+          const id = pendingDeleteId;
+          setPendingDeleteId(null);
+          if (id) void excluirRequisicao(id);
+        }}
+      />
     </div>
   );
 }
