@@ -1,5 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
+import { ArrowDownCircle, ArrowUpCircle, Landmark, Plus, Trash2, Wallet } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { useClientes, useCustos, useReceitas } from '../../hooks/useLumiBiz';
 import { supabase } from '../../lib/supabase';
@@ -65,6 +66,15 @@ export function FinanceiroPage() {
     ]);
   };
 
+  const resetForm = () => {
+    setClienteId('');
+    setDescricao('');
+    setDataLancamento('');
+    setValor('');
+    setStatusNovo('Pendente');
+    setObservacao('');
+  };
+
   const saveLancamento = async () => {
     if (!perfil?.tenant_id || !perfil.id || !descricao.trim() || !valor || !dataLancamento) {
       alert('Preencha os campos obrigatorios.');
@@ -94,22 +104,14 @@ export function FinanceiroPage() {
       return;
     }
 
-    setClienteId('');
-    setDescricao('');
-    setDataLancamento('');
-    setValor('');
-    setStatusNovo('Pendente');
-    setObservacao('');
+    resetForm();
     setShowForm(false);
     await refresh();
   };
 
   const deleteLancamento = async (id: string) => {
     if (!confirm('Deseja excluir este lancamento?')) return;
-    const result =
-      tab === 'receitas'
-        ? await supabase.from('receitas').delete().eq('id', id)
-        : await supabase.from('custos').delete().eq('id', id);
+    const result = tab === 'receitas' ? await supabase.from('receitas').delete().eq('id', id) : await supabase.from('custos').delete().eq('id', id);
 
     if (result.error) {
       alert(`Erro ao excluir lancamento: ${result.error.message}`);
@@ -119,81 +121,99 @@ export function FinanceiroPage() {
     await refresh();
   };
 
+  const rows = tab === 'receitas' ? receitasFiltradas : custosFiltrados;
+
   return (
     <div className="space-y-6">
-      <div>
-        <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Financeiro</h2>
-        <p className="text-gray-600 dark:text-gray-300">Gerenciamento de receitas e custos.</p>
-      </div>
-
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <div className="flex flex-wrap -mb-px text-sm font-medium">
-          <button onClick={() => setTab('receitas')} className={`rounded-t-lg border-b-2 px-4 py-3 ${tab === 'receitas' ? 'border-brand-gold text-brand-gold' : 'border-transparent text-gray-600 dark:text-gray-300'}`}>Receitas</button>
-          <button onClick={() => setTab('custos')} className={`rounded-t-lg border-b-2 px-4 py-3 ${tab === 'custos' ? 'border-brand-gold text-brand-gold' : 'border-transparent text-gray-600 dark:text-gray-300'}`}>Custos</button>
-        </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 rounded-lg bg-white p-4 shadow dark:bg-gray-800 md:grid-cols-2 lg:grid-cols-4">
+      <section className="page-header">
         <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Venc. De</label>
-          <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand-orange/15 bg-brand-orange/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-brand-orange dark:text-orange-200">
+            <Landmark size={14} />
+            Financeiro
+          </span>
+          <h2 className="section-title mt-4">Receitas e custos do tenant</h2>
+          <p className="section-copy">Lancamentos, filtros e visao consolidada com uma leitura mais rapida no claro e no escuro.</p>
         </div>
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Venc. Ate</label>
-          <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
+
+        <div className="grid w-full gap-3 sm:grid-cols-3 sm:w-auto">
+          <Metric title="Receitas" value={formatCurrency(totais.totalReceitas)} icon={<ArrowUpCircle size={18} />} tone="info" />
+          <Metric title="Custos" value={formatCurrency(totais.totalCustos)} icon={<ArrowDownCircle size={18} />} tone="danger" />
+          <Metric title="Saldo" value={formatCurrency(totais.saldo)} icon={<Wallet size={18} />} tone="success" />
         </div>
-        {tab === 'receitas' ? (
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Cliente</label>
-            <select value={clienteFiltro} onChange={(e) => setClienteFiltro(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+      </section>
+
+      <section className="surface-panel p-4">
+        <div className="flex flex-wrap gap-2">
+          <button
+            onClick={() => setTab('receitas')}
+            className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+              tab === 'receitas' ? 'bg-gradient-to-r from-brand-blue to-brand-blue-deep text-white shadow-glow' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
+            }`}
+          >
+            Receitas
+          </button>
+          <button
+            onClick={() => setTab('custos')}
+            className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+              tab === 'custos' ? 'bg-gradient-to-r from-brand-orange to-brand-orange-deep text-white shadow-soft' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
+            }`}
+          >
+            Custos
+          </button>
+        </div>
+      </section>
+
+      <section className="surface-panel p-5 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr_1fr_1fr_auto]">
+          <Field label="Venc. de">
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input-field" />
+          </Field>
+          <Field label="Venc. ate">
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input-field" />
+          </Field>
+          {tab === 'receitas' ? (
+            <Field label="Cliente">
+              <select value={clienteFiltro} onChange={(e) => setClienteFiltro(e.target.value)} className="input-field">
+                <option value="">Todos</option>
+                {(clientes || []).map((item) => (
+                  <option key={item.id} value={item.id}>
+                    {item.nome}
+                  </option>
+                ))}
+              </select>
+            </Field>
+          ) : (
+            <Field label="Credor">
+              <input value={credorFiltro} onChange={(e) => setCredorFiltro(e.target.value)} className="input-field" placeholder="Buscar por credor" />
+            </Field>
+          )}
+          <Field label="Status">
+            <select value={statusFiltro} onChange={(e) => setStatusFiltro(e.target.value)} className="input-field">
               <option value="">Todos</option>
-              {(clientes || []).map((item) => (
-                <option key={item.id} value={item.id}>
-                  {item.nome}
-                </option>
-              ))}
+              <option value="Pendente">Pendente</option>
+              <option value="Pago">Pago</option>
+              <option value="aprovado">Aprovado</option>
+              <option value="lancado">Lancado</option>
             </select>
+          </Field>
+          <div className="flex items-end">
+            <button onClick={() => setShowForm((current) => !current)} className="btn-primary w-full">
+              <Plus size={18} />
+              {showForm ? 'Fechar formulario' : `Novo ${tab === 'receitas' ? 'receita' : 'custo'}`}
+            </button>
           </div>
-        ) : (
-          <div>
-            <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Credor</label>
-            <input value={credorFiltro} onChange={(e) => setCredorFiltro(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-          </div>
-        )}
-        <div>
-          <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Status</label>
-          <select value={statusFiltro} onChange={(e) => setStatusFiltro(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
-            <option value="">Todos</option>
-            <option value="Pendente">Pendente</option>
-            <option value="Pago">Pago</option>
-            <option value="aprovado">Aprovado</option>
-            <option value="lancado">Lancado</option>
-          </select>
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
-        <Metric title="Receitas" value={formatCurrency(totais.totalReceitas)} color="text-blue-500" />
-        <Metric title="Custos" value={formatCurrency(totais.totalCustos)} color="text-red-500" />
-        <Metric title="Saldo" value={formatCurrency(totais.saldo)} color="text-green-500" />
-      </div>
-
-      <div className="flex justify-end">
-        <button onClick={() => setShowForm((current) => !current)} className="rounded-lg bg-brand-gold px-4 py-2 text-white shadow hover:bg-[#a98c57]">
-          {showForm ? `Fechar ${tab === 'receitas' ? 'receita' : 'custo'}` : `Novo ${tab === 'receitas' ? 'Receita' : 'Custo'}`}
-        </button>
-      </div>
+      </section>
 
       {showForm && (
-        <div className="rounded-lg bg-white p-6 shadow-md dark:bg-gray-800">
-          <h3 className="mb-4 text-xl font-semibold text-gray-800 dark:text-white">
-            {tab === 'receitas' ? 'Lancar Nova Receita' : 'Lancar Novo Custo'}
-          </h3>
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
+        <section className="surface-panel p-6 sm:p-7">
+          <h3 className="text-2xl font-semibold tracking-tight text-app-primary">{tab === 'receitas' ? 'Lancar nova receita' : 'Lancar novo custo'}</h3>
+          <p className="mt-1 text-sm text-app-secondary">Formulario rapido para o dia a dia operacional.</p>
+
+          <div className="mt-6 grid grid-cols-1 gap-5 md:grid-cols-2">
             {tab === 'receitas' && (
-              <div>
-                <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Cliente</label>
-                <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+              <Field label="Cliente">
+                <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="input-field">
                   <option value="">Selecione...</option>
                   {(clientes || []).map((item) => (
                     <option key={item.id} value={item.id}>
@@ -201,118 +221,182 @@ export function FinanceiroPage() {
                     </option>
                   ))}
                 </select>
-              </div>
+              </Field>
             )}
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">
-                {tab === 'receitas' ? 'Descricao / Observacao curta' : 'Credor / Fornecedor'}
-              </label>
-              <input value={descricao} onChange={(e) => setDescricao(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Data de Vencimento</label>
-              <input type="date" value={dataLancamento} onChange={(e) => setDataLancamento(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Valor</label>
-              <input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-            </div>
-            <div>
-              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Status</label>
-              <select value={statusNovo} onChange={(e) => setStatusNovo(e.target.value as 'Pendente' | 'Pago')} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white">
+            <Field label={tab === 'receitas' ? 'Descricao / observacao curta' : 'Credor / fornecedor'}>
+              <input value={descricao} onChange={(e) => setDescricao(e.target.value)} className="input-field" />
+            </Field>
+            <Field label="Data de vencimento">
+              <input type="date" value={dataLancamento} onChange={(e) => setDataLancamento(e.target.value)} className="input-field" />
+            </Field>
+            <Field label="Valor">
+              <input type="number" step="0.01" value={valor} onChange={(e) => setValor(e.target.value)} className="input-field" />
+            </Field>
+            <Field label="Status">
+              <select value={statusNovo} onChange={(e) => setStatusNovo(e.target.value as 'Pendente' | 'Pago')} className="input-field">
                 <option value="Pendente">Pendente</option>
                 <option value="Pago">Pago</option>
               </select>
-            </div>
-            <div className="md:col-span-2">
-              <label className="mb-2 block text-sm font-medium text-gray-900 dark:text-white">Observacao</label>
-              <textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} rows={3} className="block w-full rounded-lg border border-gray-300 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700 dark:text-white" />
-            </div>
-            <div className="flex justify-end gap-4 md:col-span-2">
-              <button onClick={() => setShowForm(false)} className="rounded-md bg-gray-200 px-6 py-2 text-sm font-medium text-gray-700 hover:bg-gray-300 dark:bg-gray-700 dark:text-gray-200">
-                Cancelar
-              </button>
-              <button onClick={saveLancamento} disabled={saving} className="rounded-md bg-brand-gold px-6 py-2 text-sm font-medium text-white hover:bg-[#a98c57] disabled:opacity-60">
-                {saving ? 'Salvando...' : 'Salvar'}
-              </button>
-            </div>
+            </Field>
+            <Field label="Observacao" className="md:col-span-2">
+              <textarea value={observacao} onChange={(e) => setObservacao(e.target.value)} rows={4} className="textarea-field" />
+            </Field>
           </div>
-        </div>
+
+          <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:justify-end">
+            <button onClick={() => setShowForm(false)} className="btn-secondary">
+              Cancelar
+            </button>
+            <button onClick={saveLancamento} disabled={saving} className="btn-primary">
+              {saving ? 'Salvando...' : 'Salvar lancamento'}
+            </button>
+          </div>
+        </section>
       )}
 
-      <div className="hidden overflow-x-auto rounded-lg shadow-md md:block">
-        <table className="w-full text-left text-sm text-gray-500 dark:text-gray-300">
-          <thead className="bg-gray-50 text-xs uppercase text-gray-700 dark:bg-gray-700 dark:text-gray-400">
-            <tr>
-              <th className="px-6 py-3">{tab === 'receitas' ? 'Cliente' : 'Credor'}</th>
-              <th className="px-6 py-3">Vencimento</th>
-              <th className="px-6 py-3">Valor</th>
-              <th className="px-6 py-3">Status</th>
-              <th className="px-6 py-3">Acoes</th>
-            </tr>
-          </thead>
-          <tbody>
-            {tab === 'receitas' &&
-              receitasFiltradas.map((row) => (
-                <tr key={row.id} className="border-b bg-white dark:border-gray-700 dark:bg-gray-800">
-                  <td className="px-6 py-4">{clientes?.find((item) => item.id === row.cliente_id)?.nome || 'Sem cliente'}</td>
-                  <td className="px-6 py-4">{new Date(row.data_lancamento).toLocaleDateString('pt-BR')}</td>
-                  <td className="px-6 py-4">{formatCurrency(Number(row.valor || 0))}</td>
-                  <td className="px-6 py-4">{row.status || '-'}</td>
-                  <td className="px-6 py-4">
-                    <button onClick={() => deleteLancamento(row.id)} className="text-red-500 hover:text-red-600">Excluir</button>
+      <section className="hidden overflow-hidden md:block">
+        <div className="surface-panel overflow-x-auto p-2">
+          <table className="w-full text-left text-sm">
+            <thead>
+              <tr className="text-app-muted">
+                <th className="px-4 py-4 font-medium">{tab === 'receitas' ? 'Cliente' : 'Credor'}</th>
+                <th className="px-4 py-4 font-medium">Vencimento</th>
+                <th className="px-4 py-4 font-medium">Valor</th>
+                <th className="px-4 py-4 font-medium">Status</th>
+                <th className="px-4 py-4 font-medium text-right">Acoes</th>
+              </tr>
+            </thead>
+            <tbody>
+              {rows.length === 0 && (
+                <tr>
+                  <td colSpan={5} className="px-4 py-10 text-center text-app-secondary">
+                    Nenhum lancamento encontrado para os filtros atuais.
                   </td>
                 </tr>
-              ))}
-            {tab === 'custos' &&
-              custosFiltrados.map((row) => (
-                <tr key={row.id} className="border-b bg-white dark:border-gray-700 dark:bg-gray-800">
-                  <td className="px-6 py-4">{row.descricao}</td>
-                  <td className="px-6 py-4">{new Date(row.data_lancamento).toLocaleDateString('pt-BR')}</td>
-                  <td className="px-6 py-4">{formatCurrency(Number(row.valor || 0))}</td>
-                  <td className="px-6 py-4">{row.status || '-'}</td>
-                  <td className="px-6 py-4">
-                    <button onClick={() => deleteLancamento(row.id)} className="text-red-500 hover:text-red-600">Excluir</button>
-                  </td>
-                </tr>
-              ))}
-          </tbody>
-        </table>
-      </div>
+              )}
+              {tab === 'receitas' &&
+                receitasFiltradas.map((row) => (
+                  <tr key={row.id} className="border-t border-border-subtle text-app-primary">
+                    <td className="px-4 py-4">{clientes?.find((item) => item.id === row.cliente_id)?.nome || 'Sem cliente'}</td>
+                    <td className="px-4 py-4">{new Date(row.data_lancamento).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-4 py-4 font-semibold text-brand-blue">{formatCurrency(Number(row.valor || 0))}</td>
+                    <td className="px-4 py-4">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${String(row.status).toLowerCase() === 'pago' ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300' : 'bg-yellow-500/12 text-yellow-600 dark:text-yellow-300'}`}>
+                        {row.status || '-'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <button onClick={() => deleteLancamento(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                        <Trash2 size={16} />
+                        Excluir
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              {tab === 'custos' &&
+                custosFiltrados.map((row) => (
+                  <tr key={row.id} className="border-t border-border-subtle text-app-primary">
+                    <td className="px-4 py-4">{row.descricao}</td>
+                    <td className="px-4 py-4">{new Date(row.data_lancamento).toLocaleDateString('pt-BR')}</td>
+                    <td className="px-4 py-4 font-semibold text-brand-orange">{formatCurrency(Number(row.valor || 0))}</td>
+                    <td className="px-4 py-4">
+                      <span className={`rounded-full px-2.5 py-1 text-xs font-semibold ${String(row.status).toLowerCase() === 'pago' ? 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300' : 'bg-yellow-500/12 text-yellow-600 dark:text-yellow-300'}`}>
+                        {row.status || '-'}
+                      </span>
+                    </td>
+                    <td className="px-4 py-4 text-right">
+                      <button onClick={() => deleteLancamento(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                        <Trash2 size={16} />
+                        Excluir
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 md:hidden">
+      <section className="grid grid-cols-1 gap-4 md:hidden">
+        {rows.length === 0 && <div className="surface-panel p-6 text-center text-app-secondary">Nenhum lancamento encontrado para os filtros atuais.</div>}
         {tab === 'receitas' &&
           receitasFiltradas.map((row) => (
-            <article key={row.id} className="rounded-xl bg-white p-4 shadow dark:bg-gray-800">
-              <p className="font-semibold text-gray-900 dark:text-white">{clientes?.find((item) => item.id === row.cliente_id)?.nome || 'Sem cliente'}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{new Date(row.data_lancamento).toLocaleDateString('pt-BR')}</p>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-brand-gold">{formatCurrency(Number(row.valor || 0))}</span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">{row.status || '-'}</span>
+            <article key={row.id} className="surface-panel p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-app-primary">{clientes?.find((item) => item.id === row.cliente_id)?.nome || 'Sem cliente'}</p>
+                  <p className="mt-1 text-sm text-app-secondary">{new Date(row.data_lancamento).toLocaleDateString('pt-BR')}</p>
+                </div>
+                <span className="rounded-full bg-brand-blue/12 px-2.5 py-1 text-xs font-semibold text-brand-blue dark:text-blue-200">{row.status || '-'}</span>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-xl font-semibold text-brand-blue">{formatCurrency(Number(row.valor || 0))}</span>
+                <button onClick={() => deleteLancamento(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                  <Trash2 size={16} />
+                  Excluir
+                </button>
               </div>
             </article>
           ))}
         {tab === 'custos' &&
           custosFiltrados.map((row) => (
-            <article key={row.id} className="rounded-xl bg-white p-4 shadow dark:bg-gray-800">
-              <p className="font-semibold text-gray-900 dark:text-white">{row.descricao}</p>
-              <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">{new Date(row.data_lancamento).toLocaleDateString('pt-BR')}</p>
-              <div className="mt-3 flex items-center justify-between">
-                <span className="text-brand-gold">{formatCurrency(Number(row.valor || 0))}</span>
-                <span className="text-sm text-gray-500 dark:text-gray-400">{row.status || '-'}</span>
+            <article key={row.id} className="surface-panel p-5">
+              <div className="flex items-start justify-between gap-4">
+                <div>
+                  <p className="font-semibold text-app-primary">{row.descricao}</p>
+                  <p className="mt-1 text-sm text-app-secondary">{new Date(row.data_lancamento).toLocaleDateString('pt-BR')}</p>
+                </div>
+                <span className="rounded-full bg-brand-orange/12 px-2.5 py-1 text-xs font-semibold text-brand-orange dark:text-orange-200">{row.status || '-'}</span>
+              </div>
+              <div className="mt-4 flex items-center justify-between">
+                <span className="text-xl font-semibold text-brand-orange">{formatCurrency(Number(row.valor || 0))}</span>
+                <button onClick={() => deleteLancamento(row.id)} className="btn-ghost h-10 rounded-2xl border border-border-subtle px-3 text-rose-600 hover:bg-rose-500/10 dark:text-rose-300">
+                  <Trash2 size={16} />
+                  Excluir
+                </button>
               </div>
             </article>
           ))}
+      </section>
+    </div>
+  );
+}
+
+function Metric({
+  title,
+  value,
+  icon,
+  tone
+}: {
+  title: string;
+  value: string;
+  icon: ReactNode;
+  tone: 'info' | 'danger' | 'success';
+}) {
+  const toneMap = {
+    info: 'bg-brand-blue/12 text-brand-blue dark:text-blue-200',
+    danger: 'bg-brand-orange/12 text-brand-orange dark:text-orange-200',
+    success: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300'
+  };
+
+  return (
+    <div className="surface-subtle p-4">
+      <div className="flex items-start justify-between gap-3">
+        <div>
+          <p className="text-sm text-app-secondary">{title}</p>
+          <p className="mt-2 text-2xl font-semibold text-app-primary">{value}</p>
+        </div>
+        <div className={`flex h-11 w-11 items-center justify-center rounded-2xl ${toneMap[tone]}`}>{icon}</div>
       </div>
     </div>
   );
 }
 
-function Metric({ title, value, color }: { title: string; value: string; color: string }) {
+function Field({ label, className, children }: { label: string; className?: string; children: ReactNode }) {
   return (
-    <div className="rounded-xl bg-white p-5 shadow dark:bg-gray-800">
-      <p className="text-sm text-gray-500 dark:text-gray-400">{title}</p>
-      <p className={`mt-2 text-2xl font-semibold ${color}`}>{value}</p>
+    <div className={className}>
+      <label className="mb-2 block text-sm font-medium text-app-primary">{label}</label>
+      {children}
     </div>
   );
 }

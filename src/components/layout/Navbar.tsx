@@ -1,49 +1,83 @@
-import { Menu, LogOut } from 'lucide-react';
+import { LogOut, Menu, MoonStar, PanelLeftClose, PanelLeftOpen, SunMedium } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
+import { useTheme } from '../../contexts/ThemeContext';
+import { BrandMark } from './BrandMark';
 
 interface NavbarProps {
-  toggleSidebar: () => void;
   pageTitle: string;
+  isDesktopSidebarOpen: boolean;
+  toggleMobileSidebar: () => void;
+  toggleDesktopSidebar: () => void;
 }
 
-export function Navbar({ toggleSidebar, pageTitle }: NavbarProps) {
+export function Navbar({ pageTitle, isDesktopSidebarOpen, toggleMobileSidebar, toggleDesktopSidebar }: NavbarProps) {
   const { perfil, signOut } = useAuth();
+  const { theme, toggleTheme } = useTheme();
+  const initials = (perfil?.nome || 'LB')
+    .split(' ')
+    .filter(Boolean)
+    .slice(0, 2)
+    .map((chunk) => chunk[0]?.toUpperCase())
+    .join('');
 
   return (
-    <header className="flex items-center justify-between h-20 px-4 sm:px-6 bg-white border-b dark:bg-gray-800 dark:border-gray-700">
-      <div className="flex items-center">
-        <button
-          onClick={toggleSidebar}
-          className="text-gray-500 dark:text-gray-400 focus:outline-none lg:hidden mr-4"
-          aria-label="Abrir menu"
-        >
-          <Menu size={24} />
-        </button>
-        <h1 className="text-xl sm:text-2xl font-bold text-gray-800 dark:text-white">
-          {pageTitle}
-        </h1>
-      </div>
-      <div className="flex items-center space-x-2 sm:space-x-4">
-        <div className="text-right hidden sm:block">
-          <p className="text-sm font-semibold text-gray-700 dark:text-gray-200">
-            {perfil?.nome}
-          </p>
-          <p className="text-xs text-gray-500 dark:text-gray-400 capitalize">
-            {perfil?.role}
-          </p>
+    <header className="sticky top-0 z-20 border-b border-border-subtle/60 bg-[rgba(var(--app-bg),0.72)] px-4 py-4 backdrop-blur-xl sm:px-6">
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="lg:hidden">
+            <BrandMark compact />
+          </div>
+
+          <button onClick={toggleMobileSidebar} className="btn-ghost h-12 w-12 rounded-2xl border border-border-subtle bg-surface-panel lg:hidden" aria-label="Abrir menu">
+            <Menu size={20} />
+          </button>
+
+          <div className="hidden lg:block">
+            <button
+              onClick={toggleDesktopSidebar}
+              className="btn-ghost h-12 w-12 rounded-2xl border border-border-subtle bg-surface-panel"
+              aria-label={isDesktopSidebarOpen ? 'Ocultar menu lateral' : 'Mostrar menu lateral'}
+              title={isDesktopSidebarOpen ? 'Ocultar menu lateral' : 'Mostrar menu lateral'}
+            >
+              {isDesktopSidebarOpen ? <PanelLeftClose size={20} /> : <PanelLeftOpen size={20} />}
+            </button>
+          </div>
+
+          <div className="min-w-0">
+            <p className="truncate text-xl font-semibold tracking-tight text-app-primary sm:text-2xl">{pageTitle}</p>
+            <p className="truncate text-sm text-app-secondary">Operacao multitenant com foco em mobilidade e produtividade</p>
+          </div>
         </div>
-        <img
-          className="w-10 h-10 rounded-full object-cover"
-          src={perfil?.foto_url || `https://ui-avatars.com/api/?name=${perfil?.nome}&background=BFA16A&color=fff`}
-          alt="Avatar do usuário"
-        />
-        <button
-          onClick={signOut}
-          className="p-2 rounded-full text-gray-500 dark:text-gray-400 hover:bg-gray-200 dark:hover:bg-gray-700"
-          title="Sair"
-        >
-          <LogOut size={20} />
-        </button>
+
+        <div className="flex items-center gap-2 sm:gap-3">
+          <button
+            onClick={toggleTheme}
+            className="btn-secondary h-12 px-3 sm:px-4"
+            title={theme === 'light' ? 'Ativar tema escuro' : 'Ativar tema claro'}
+            aria-label="Alternar tema"
+          >
+            {theme === 'light' ? <MoonStar size={18} /> : <SunMedium size={18} />}
+            <span className="hidden sm:inline">{theme === 'light' ? 'Escuro' : 'Claro'}</span>
+          </button>
+
+          <div className="hidden items-center gap-3 rounded-3xl border border-border-subtle bg-surface-panel px-3 py-2 shadow-soft md:flex">
+            <div className="text-right">
+              <p className="text-sm font-semibold text-app-primary">{perfil?.nome}</p>
+              <p className="text-xs capitalize text-app-muted">{perfil?.role}</p>
+            </div>
+            {perfil?.foto_url ? (
+              <img className="h-11 w-11 rounded-2xl object-cover" src={perfil.foto_url} alt="Avatar do usuario" />
+            ) : (
+              <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-blue to-brand-orange text-sm font-bold text-white">
+                {initials}
+              </div>
+            )}
+          </div>
+
+          <button onClick={signOut} className="btn-secondary h-12 w-12 rounded-2xl px-0" title="Sair">
+            <LogOut size={18} />
+          </button>
+        </div>
       </div>
     </header>
   );

@@ -1,6 +1,6 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 import { useQueryClient } from '@tanstack/react-query';
-import { CalendarDays, KanbanSquare, Plus, Search, X } from 'lucide-react';
+import { CalendarDays, KanbanSquare, MapPinned, Plus, Search, X } from 'lucide-react';
 import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../contexts/AuthContext';
 import { formatDate } from '../../lib/utils';
@@ -8,17 +8,17 @@ import { useClientes, usePerfis, useVisitas } from '../../hooks/useLumiBiz';
 import { VisitasAgenda } from './VisitasAgenda';
 import { VisitasKanban } from './VisitasKanban';
 
-type StatusFilter = 'Todas' | 'Agendada' | 'Em Andamento' | 'Concluída';
+type StatusFilter = 'Todas' | 'Agendada' | 'Em Andamento' | 'Concluida';
 type ViewMode = 'kanban' | 'agenda';
 
 const LoadingSpinner = () => (
   <div className="flex h-64 items-center justify-center">
-    <div className="h-16 w-16 animate-spin rounded-full border-b-2 border-brand-gold" />
+    <div className="h-16 w-16 animate-spin rounded-full border-4 border-brand-orange/25 border-t-brand-blue" />
   </div>
 );
 
 const ErrorMessage = ({ message }: { message: string }) => (
-  <div className="rounded-xl border border-red-300 bg-red-50 px-4 py-3 text-red-700">{message}</div>
+  <div className="surface-panel px-5 py-4 text-rose-600 dark:text-rose-300">{message}</div>
 );
 
 export function VisitasPage() {
@@ -45,12 +45,10 @@ export function VisitasPage() {
     if (!visitas) return [];
 
     return visitas.filter((visita) => {
-      const matchStatus = statusFilter === 'Todas' || visita.status === statusFilter;
+      const normalizedStatus = visita.status === 'Concluída' ? 'Concluida' : visita.status;
+      const matchStatus = statusFilter === 'Todas' || normalizedStatus === statusFilter;
       const search = searchTerm.toLowerCase();
-      const matchSearch =
-        !search ||
-        visita.clientes?.nome?.toLowerCase().includes(search) ||
-        visita.perfis?.nome?.toLowerCase().includes(search);
+      const matchSearch = !search || visita.clientes?.nome?.toLowerCase().includes(search) || visita.perfis?.nome?.toLowerCase().includes(search);
 
       return matchStatus && matchSearch;
     });
@@ -99,45 +97,45 @@ export function VisitasPage() {
   };
 
   return (
-    <div className="space-y-4">
-      <section className="grid grid-cols-1 gap-3 sm:grid-cols-3">
-        <div className="rounded-2xl bg-brand-dark p-4 text-white shadow-lg">
-          <p className="text-sm text-white/70">Visitas filtradas</p>
-          <p className="mt-2 text-3xl font-semibold">{resumo.total}</p>
+    <div className="space-y-6">
+      <section className="page-header">
+        <div>
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand-blue/15 bg-brand-blue/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-brand-blue dark:text-blue-200">
+            <MapPinned size={14} />
+            Campo e agenda
+          </span>
+          <h2 className="section-title mt-4">Gestao de visitas</h2>
+          <p className="section-copy">Agenda, kanban e operacao em campo com check-in e check-out via geolocalizacao.</p>
         </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Agenda de hoje</p>
-          <p className="mt-2 text-3xl font-semibold text-gray-900 dark:text-white">{resumo.hoje}</p>
-        </div>
-        <div className="rounded-2xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
-          <p className="text-sm text-gray-500 dark:text-gray-400">Em andamento</p>
-          <p className="mt-2 text-3xl font-semibold text-brand-gold">{resumo.andamento}</p>
+
+        <div className="grid w-full gap-3 sm:grid-cols-3 sm:w-auto">
+          <Metric label="Filtradas" value={String(resumo.total)} tone="info" />
+          <Metric label="Hoje" value={String(resumo.hoje)} tone="amber" />
+          <Metric label="Em andamento" value={String(resumo.andamento)} tone="success" />
         </div>
       </section>
 
-      <section className="rounded-3xl border border-gray-200 bg-white p-4 shadow-sm dark:border-gray-700 dark:bg-gray-800">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          <div className="flex flex-1 flex-col gap-3 sm:flex-row">
-            <label className="relative flex-1">
-              <Search className="absolute left-3 top-3 text-gray-400" size={18} />
+      <section className="surface-panel p-5 sm:p-6">
+        <div className="flex flex-col gap-4 xl:flex-row xl:items-center xl:justify-between">
+          <div className="grid flex-1 grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_auto]">
+            <label className="relative">
+              <Search className="absolute left-3 top-3.5 text-app-muted" size={18} />
               <input
                 type="text"
                 placeholder="Buscar por cliente ou usuario"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-xl border border-gray-200 bg-white py-2.5 pl-10 pr-4 outline-none ring-0 focus:border-brand-gold dark:border-gray-700 dark:bg-gray-900"
+                className="input-field pl-10"
               />
             </label>
 
             <div className="flex flex-wrap gap-2">
-              {(['Todas', 'Agendada', 'Em Andamento', 'Concluída'] as const).map((status) => (
+              {(['Todas', 'Agendada', 'Em Andamento', 'Concluida'] as const).map((status) => (
                 <button
                   key={status}
                   onClick={() => setStatusFilter(status)}
-                  className={`rounded-xl px-3 py-2 text-sm font-medium ${
-                    statusFilter === status
-                      ? 'bg-brand-gold text-white'
-                      : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-200'
+                  className={`rounded-2xl px-4 py-2 text-sm font-semibold transition ${
+                    statusFilter === status ? 'bg-gradient-to-r from-brand-orange to-brand-orange-deep text-white shadow-soft' : 'bg-surface-muted text-app-secondary hover:text-app-primary'
                   }`}
                 >
                   {status}
@@ -147,11 +145,11 @@ export function VisitasPage() {
           </div>
 
           <div className="flex flex-wrap gap-2">
-            <div className="flex rounded-xl bg-gray-100 p-1 dark:bg-gray-700">
+            <div className="flex rounded-2xl bg-surface-muted p-1">
               <button
                 onClick={() => setViewMode('kanban')}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                  viewMode === 'kanban' ? 'bg-brand-dark text-white' : 'text-gray-700 dark:text-gray-200'
+                className={`flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold ${
+                  viewMode === 'kanban' ? 'bg-brand-blue text-white shadow-glow' : 'text-app-secondary'
                 }`}
               >
                 <KanbanSquare size={16} />
@@ -159,8 +157,8 @@ export function VisitasPage() {
               </button>
               <button
                 onClick={() => setViewMode('agenda')}
-                className={`flex items-center gap-2 rounded-lg px-3 py-2 text-sm ${
-                  viewMode === 'agenda' ? 'bg-brand-dark text-white' : 'text-gray-700 dark:text-gray-200'
+                className={`flex items-center gap-2 rounded-2xl px-4 py-2 text-sm font-semibold ${
+                  viewMode === 'agenda' ? 'bg-brand-orange text-white shadow-soft' : 'text-app-secondary'
                 }`}
               >
                 <CalendarDays size={16} />
@@ -168,10 +166,7 @@ export function VisitasPage() {
               </button>
             </div>
 
-            <button
-              onClick={() => setIsSheetOpen(true)}
-              className="inline-flex items-center justify-center gap-2 rounded-xl bg-brand-dark px-4 py-2.5 font-medium text-white transition-colors hover:bg-brand-gold"
-            >
+            <button onClick={() => setIsSheetOpen(true)} className="btn-primary">
               <Plus size={18} />
               Nova visita
             </button>
@@ -187,30 +182,21 @@ export function VisitasPage() {
       </section>
 
       {isSheetOpen && (
-        <div className="fixed inset-0 z-40 flex items-end bg-black/50 sm:items-center sm:justify-center">
-          <div className="h-[92vh] w-full rounded-t-3xl bg-white p-5 shadow-2xl dark:bg-gray-900 sm:h-auto sm:max-w-xl sm:rounded-3xl">
-            <div className="mb-6 flex items-center justify-between">
+        <div className="fixed inset-0 z-40 flex items-end bg-slate-950/55 backdrop-blur-sm sm:items-center sm:justify-center">
+          <div className="surface-panel h-[92vh] w-full rounded-t-[28px] p-5 sm:h-auto sm:max-w-xl sm:rounded-[28px] sm:p-7">
+            <div className="mb-6 flex items-start justify-between gap-4">
               <div>
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Nova visita</h2>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Agende visitas com foco em uso mobile e check-in em campo.</p>
+                <h2 className="text-2xl font-semibold tracking-tight text-app-primary">Nova visita</h2>
+                <p className="mt-1 text-sm text-app-secondary">Agende visitas com foco em uso mobile e execucao em campo.</p>
               </div>
-              <button
-                onClick={() => setIsSheetOpen(false)}
-                className="rounded-full p-2 text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800"
-                aria-label="Fechar"
-              >
-                <X size={20} />
+              <button onClick={() => setIsSheetOpen(false)} className="btn-ghost h-10 w-10 rounded-2xl px-0" aria-label="Fechar">
+                <X size={18} />
               </button>
             </div>
 
             <div className="space-y-4">
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Cliente</span>
-                <select
-                  value={clienteId}
-                  onChange={(e) => setClienteId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-800"
-                >
+              <Field label="Cliente">
+                <select value={clienteId} onChange={(e) => setClienteId(e.target.value)} className="input-field">
                   <option value="">Selecione um cliente</option>
                   {(clientes || []).map((cliente) => (
                     <option key={cliente.id} value={cliente.id}>
@@ -218,15 +204,10 @@ export function VisitasPage() {
                     </option>
                   ))}
                 </select>
-              </label>
+              </Field>
 
-              <label className="block space-y-2">
-                <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Usuario responsavel</span>
-                <select
-                  value={usuarioId}
-                  onChange={(e) => setUsuarioId(e.target.value)}
-                  className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-800"
-                >
+              <Field label="Usuario responsavel">
+                <select value={usuarioId} onChange={(e) => setUsuarioId(e.target.value)} className="input-field">
                   <option value="">Eu mesmo</option>
                   {(perfis || []).map((item) => (
                     <option key={item.id} value={item.id}>
@@ -234,58 +215,61 @@ export function VisitasPage() {
                     </option>
                   ))}
                 </select>
-              </label>
+              </Field>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <label className="block space-y-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Data</span>
-                  <input
-                    type="date"
-                    value={dataVisita}
-                    onChange={(e) => setDataVisita(e.target.value)}
-                    min={new Date().toISOString().slice(0, 10)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-800"
-                  />
-                </label>
-
-                <label className="block space-y-2">
-                  <span className="text-sm font-medium text-gray-700 dark:text-gray-200">Horario inicial</span>
-                  <input
-                    type="time"
-                    value={horaInicio}
-                    onChange={(e) => setHoraInicio(e.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-white px-3 py-3 dark:border-gray-700 dark:bg-gray-800"
-                  />
-                </label>
+                <Field label="Data">
+                  <input type="date" value={dataVisita} onChange={(e) => setDataVisita(e.target.value)} min={new Date().toISOString().slice(0, 10)} className="input-field" />
+                </Field>
+                <Field label="Horario inicial">
+                  <input type="time" value={horaInicio} onChange={(e) => setHoraInicio(e.target.value)} className="input-field" />
+                </Field>
               </div>
 
-              <div className="rounded-2xl bg-amber-50 p-4 text-sm text-amber-800 dark:bg-amber-500/10 dark:text-amber-200">
+              <div className="surface-subtle p-4 text-sm text-app-secondary">
                 Check-in e check-out continuam usando a geolocalizacao nativa do navegador quando a visita entrar em execucao.
               </div>
 
               <div className="flex flex-col gap-3 sm:flex-row sm:justify-end">
-                <button
-                  onClick={() => setIsSheetOpen(false)}
-                  className="rounded-xl border border-gray-200 px-4 py-3 font-medium text-gray-700 dark:border-gray-700 dark:text-gray-200"
-                >
+                <button onClick={() => setIsSheetOpen(false)} className="btn-secondary">
                   Cancelar
                 </button>
-                <button
-                  onClick={criarVisita}
-                  disabled={saving}
-                  className="rounded-xl bg-brand-dark px-4 py-3 font-medium text-white transition-colors hover:bg-brand-gold disabled:opacity-60"
-                >
+                <button onClick={criarVisita} disabled={saving} className="btn-primary">
                   {saving ? 'Salvando...' : 'Salvar visita'}
                 </button>
               </div>
             </div>
 
-            <div className="mt-6 rounded-2xl border border-dashed border-gray-200 p-4 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400">
+            <div className="mt-6 rounded-2xl border border-dashed border-border-subtle p-4 text-sm text-app-secondary">
               Proxima data sugerida: {formatDate(dataVisita)}
             </div>
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function Metric({ label, value, tone }: { label: string; value: string; tone: 'info' | 'amber' | 'success' }) {
+  const toneMap = {
+    info: 'bg-brand-blue/12 text-brand-blue dark:text-blue-200',
+    amber: 'bg-brand-orange/12 text-brand-orange dark:text-orange-200',
+    success: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300'
+  };
+
+  return (
+    <div className="surface-subtle p-4">
+      <p className="text-sm text-app-secondary">{label}</p>
+      <p className={`mt-2 text-2xl font-semibold ${toneMap[tone]}`}>{value}</p>
+    </div>
+  );
+}
+
+function Field({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <label className="block">
+      <span className="mb-2 block text-sm font-medium text-app-primary">{label}</span>
+      {children}
+    </label>
   );
 }

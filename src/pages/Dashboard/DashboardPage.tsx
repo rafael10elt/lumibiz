@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { FileText, Lightbulb } from 'lucide-react';
+import { useMemo, useState, type ReactNode } from 'react';
+import { ArrowDownRight, ArrowUpRight, CalendarRange, FileText, Lightbulb, Target, WalletCards } from 'lucide-react';
 import {
   Bar,
   BarChart,
@@ -181,25 +181,32 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-wrap items-center justify-between gap-4">
-        <div>
-          <h2 className="text-3xl font-bold text-gray-800 dark:text-white">Dashboard</h2>
-          <p className="text-gray-600 dark:text-gray-300">Visao geral e metricas chave do sistema.</p>
+      <section className="page-header">
+        <div className="max-w-3xl">
+          <span className="inline-flex items-center gap-2 rounded-full border border-brand-blue/15 bg-brand-blue/10 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-brand-blue dark:text-blue-200">
+            <WalletCards size={14} />
+            Panorama executivo
+          </span>
+          <h2 className="section-title mt-4">Visao geral do tenant em tempo real</h2>
+          <p className="section-copy">
+            Acompanhe balanco, produtividade e saude operacional com filtros rapidos e graficos mais legiveis em qualquer tema.
+          </p>
         </div>
-        <div className="flex w-full gap-2 sm:w-auto">
-          <button onClick={() => setShowInsights(true)} className="inline-flex items-center gap-2 rounded-lg bg-yellow-500 px-4 py-2 text-white shadow hover:bg-yellow-600">
-            <Lightbulb size={18} />
-            Gerar Insights
-          </button>
-          <button onClick={exportReport} className="inline-flex items-center gap-2 rounded-lg bg-blue-500 px-4 py-2 text-white shadow hover:bg-blue-600">
-            <FileText size={18} />
-            Gerar Relatorio
-          </button>
-        </div>
-      </div>
 
-      <div className="border-b border-gray-200 dark:border-gray-700">
-        <div className="flex flex-wrap -mb-px text-sm font-medium">
+        <div className="flex w-full flex-col gap-3 sm:w-auto sm:flex-row">
+          <button onClick={() => setShowInsights(true)} className="btn-accent">
+            <Lightbulb size={18} />
+            Gerar insights
+          </button>
+          <button onClick={exportReport} className="btn-primary">
+            <FileText size={18} />
+            Gerar relatorio
+          </button>
+        </div>
+      </section>
+
+      <section className="surface-panel p-3 sm:p-4">
+        <div className="flex flex-wrap gap-2">
           {[
             ['balanco', 'Balanco'],
             ['receitas', 'Receitas'],
@@ -209,65 +216,82 @@ export function DashboardPage() {
             <button
               key={value}
               onClick={() => setTab(value as DashboardTab)}
-              className={`rounded-t-lg border-b-2 px-4 py-3 ${
-                tab === value ? 'border-brand-gold text-brand-gold' : 'border-transparent text-gray-600 hover:border-gray-300 dark:text-gray-300'
+              className={`rounded-2xl px-4 py-2.5 text-sm font-semibold transition ${
+                tab === value
+                  ? 'bg-gradient-to-r from-brand-blue to-brand-orange text-white shadow-glow'
+                  : 'text-app-secondary hover:bg-surface-muted hover:text-app-primary'
               }`}
             >
               {label}
             </button>
           ))}
         </div>
-      </div>
+      </section>
 
-      <div className="rounded-2xl bg-white p-4 shadow dark:bg-gray-800">
-        <div className="grid grid-cols-1 gap-4 lg:grid-cols-4">
-          <div>
-            <label className="mb-2 block text-sm font-medium">Status</label>
-            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700">
+      <section className="surface-panel p-5 sm:p-6">
+        <div className="grid grid-cols-1 gap-4 xl:grid-cols-[1fr_1fr_1fr_auto]">
+          <Field label="Status">
+            <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} className="input-field">
               <option value="">Todos</option>
               <option value="Pago">Pago</option>
               <option value="Pendente">Pendente</option>
               <option value="aprovado">Aprovado</option>
               <option value="lancado">Lancado</option>
             </select>
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">De</label>
-            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700" />
-          </div>
-          <div>
-            <label className="mb-2 block text-sm font-medium">Ate</label>
-            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="block w-full rounded-lg border border-gray-300 bg-gray-50 p-2.5 text-sm dark:border-gray-600 dark:bg-gray-700" />
-          </div>
-          <div className="flex items-end justify-start gap-2 lg:justify-end">
-            <button onClick={() => setStartDate(startOfPeriod('week'))} className="rounded-md bg-gray-200 px-3 py-2 text-sm dark:bg-gray-600">Semana</button>
-            <button onClick={() => setStartDate(startOfPeriod('month'))} className="rounded-md bg-gray-200 px-3 py-2 text-sm dark:bg-gray-600">Mes</button>
-            <button onClick={() => setStartDate(startOfPeriod('year'))} className="rounded-md bg-gray-200 px-3 py-2 text-sm dark:bg-gray-600">Ano</button>
+          </Field>
+
+          <Field label="De">
+            <input type="date" value={startDate} onChange={(e) => setStartDate(e.target.value)} className="input-field" />
+          </Field>
+
+          <Field label="Ate">
+            <input type="date" value={endDate} onChange={(e) => setEndDate(e.target.value)} className="input-field" />
+          </Field>
+
+          <div className="flex flex-wrap items-end gap-2">
+            <button onClick={() => setStartDate(startOfPeriod('week'))} className="btn-secondary px-4">
+              Semana
+            </button>
+            <button onClick={() => setStartDate(startOfPeriod('month'))} className="btn-secondary px-4">
+              Mes
+            </button>
+            <button onClick={() => setStartDate(startOfPeriod('year'))} className="btn-secondary px-4">
+              Ano
+            </button>
           </div>
         </div>
-      </div>
+      </section>
 
       {tab === 'balanco' && (
         <div className="space-y-6">
-          <div className="grid grid-cols-1 gap-6 md:grid-cols-2 lg:grid-cols-3">
-            <MetricCard title="Balanco Financeiro" value={formatCurrency(resumo.saldo)} color="text-green-500" />
-            <MetricCard title="Total de Receitas" value={formatCurrency(resumo.totalReceitas)} color="text-blue-500" />
-            <MetricCard title="Total de Custos" value={formatCurrency(resumo.totalCustos)} color="text-red-500" />
-            <MetricCard title="Receitas Pendentes" value={formatCurrency(resumo.receitasPendentes)} color="text-yellow-500" />
-            <MetricCard title="Custos Pendentes" value={formatCurrency(resumo.custosPendentes)} color="text-orange-500" />
-            <MetricCard title="Chamados em aberto" value={String(resumo.chamadosAbertos)} color="text-brand-dark dark:text-white" />
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2 2xl:grid-cols-3">
+            <MetricCard title="Balanco financeiro" value={formatCurrency(resumo.saldo)} accent="success" icon={<Target size={18} />} />
+            <MetricCard title="Total de receitas" value={formatCurrency(resumo.totalReceitas)} accent="info" icon={<ArrowUpRight size={18} />} />
+            <MetricCard title="Total de custos" value={formatCurrency(resumo.totalCustos)} accent="danger" icon={<ArrowDownRight size={18} />} />
+            <MetricCard title="Receitas pendentes" value={formatCurrency(resumo.receitasPendentes)} accent="warning" icon={<CalendarRange size={18} />} />
+            <MetricCard title="Custos pendentes" value={formatCurrency(resumo.custosPendentes)} accent="amber" icon={<CalendarRange size={18} />} />
+            <MetricCard title="Chamados em aberto" value={String(resumo.chamadosAbertos)} accent="neutral" icon={<FileText size={18} />} />
           </div>
 
-          <Panel title="Receitas vs. Custos por Mes">
-            <ResponsiveContainer width="100%" height={320}>
-              <BarChart data={mensal}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="mes" />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(Number(value || 0))} />
+          <Panel title="Receitas vs. custos por mes" subtitle="Comparativo consolidado das movimentacoes financeiras filtradas.">
+            <ResponsiveContainer width="100%" height={340}>
+              <BarChart data={mensal} barGap={10}>
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.22)" vertical={false} />
+                <XAxis dataKey="mes" stroke="rgb(148,163,184)" tickLine={false} axisLine={false} />
+                <YAxis stroke="rgb(148,163,184)" tickLine={false} axisLine={false} />
+                <Tooltip
+                  cursor={{ fill: 'rgba(148, 163, 184, 0.08)' }}
+                  formatter={(value) => formatCurrency(Number(value || 0))}
+                  contentStyle={{
+                    borderRadius: 18,
+                    border: '1px solid rgba(148,163,184,0.18)',
+                    background: 'rgba(15,23,42,0.92)',
+                    color: '#fff'
+                  }}
+                />
                 <Legend />
-                <Bar dataKey="receitas" fill="#5b8def" radius={[6, 6, 0, 0]} />
-                <Bar dataKey="custos" fill="#f87171" radius={[6, 6, 0, 0]} />
+                <Bar dataKey="receitas" fill="#0D8BD8" radius={[10, 10, 0, 0]} />
+                <Bar dataKey="custos" fill="#FF9B17" radius={[10, 10, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Panel>
@@ -275,58 +299,84 @@ export function DashboardPage() {
       )}
 
       {tab === 'receitas' && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Panel title="Receitas por Cliente">
-            <ResponsiveContainer width="100%" height={320}>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.9fr]">
+          <Panel title="Receitas por cliente" subtitle="Ranking dos clientes com maior participacao no faturamento.">
+            <ResponsiveContainer width="100%" height={340}>
               <BarChart data={rankingReceitas}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.22)" vertical={false} />
                 <XAxis dataKey="nome" hide />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(Number(value || 0))} />
-                <Bar dataKey="valor" fill="#5b8def" radius={[6, 6, 0, 0]} />
+                <YAxis stroke="rgb(148,163,184)" tickLine={false} axisLine={false} />
+                <Tooltip
+                  formatter={(value) => formatCurrency(Number(value || 0))}
+                  contentStyle={{
+                    borderRadius: 18,
+                    border: '1px solid rgba(148,163,184,0.18)',
+                    background: 'rgba(15,23,42,0.92)',
+                    color: '#fff'
+                  }}
+                />
+                <Bar dataKey="valor" fill="#0D8BD8" radius={[10, 10, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Panel>
-          <Ranking title="Ranking de Clientes" items={rankingReceitas.map((item) => ({ label: item.nome, value: formatCurrency(item.valor) }))} />
+          <Ranking title="Top clientes" items={rankingReceitas.map((item) => ({ label: item.nome, value: formatCurrency(item.valor) }))} />
         </div>
       )}
 
       {tab === 'custos' && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <Panel title="Custos por Categoria">
-            <ResponsiveContainer width="100%" height={320}>
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.4fr_0.9fr]">
+          <Panel title="Custos por categoria" subtitle="Onde o tenant concentra maior esforco financeiro.">
+            <ResponsiveContainer width="100%" height={340}>
               <BarChart data={rankingCustos}>
-                <CartesianGrid strokeDasharray="3 3" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(148,163,184,0.22)" vertical={false} />
                 <XAxis dataKey="nome" hide />
-                <YAxis />
-                <Tooltip formatter={(value) => formatCurrency(Number(value || 0))} />
-                <Bar dataKey="valor" fill="#f87171" radius={[6, 6, 0, 0]} />
+                <YAxis stroke="rgb(148,163,184)" tickLine={false} axisLine={false} />
+                <Tooltip
+                  formatter={(value) => formatCurrency(Number(value || 0))}
+                  contentStyle={{
+                    borderRadius: 18,
+                    border: '1px solid rgba(148,163,184,0.18)',
+                    background: 'rgba(15,23,42,0.92)',
+                    color: '#fff'
+                  }}
+                />
+                <Bar dataKey="valor" fill="#FF9B17" radius={[10, 10, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Panel>
-          <Ranking title="Ranking de Custos" items={rankingCustos.map((item) => ({ label: item.nome, value: formatCurrency(item.valor) }))} />
+          <Ranking title="Top centros de custo" items={rankingCustos.map((item) => ({ label: item.nome, value: formatCurrency(item.valor) }))} />
         </div>
       )}
 
       {tab === 'visitas' && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-3 lg:col-span-2">
-            <MetricCard title="Agendadas" value={String(visitasResumo.agendadas)} color="text-blue-500" />
-            <MetricCard title="Em andamento" value={String(visitasResumo.andamento)} color="text-yellow-500" />
-            <MetricCard title="Concluidas" value={String(visitasResumo.concluidas)} color="text-green-500" />
-          </div>
-          <Panel title="Ultimas Visitas">
-            <div className="space-y-3">
-              {visitasFiltradas.slice(0, 6).map((item) => (
-                <div key={item.id} className="rounded-xl border border-gray-100 p-4 dark:border-gray-700">
-                  <p className="font-semibold text-gray-900 dark:text-white">{item.clientes?.nome || 'Cliente sem nome'}</p>
-                  <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                    {(item.perfis?.nome || 'Sem usuario') + ' - ' + formatDate(item.data_visita)}
-                  </p>
-                </div>
-              ))}
+        <div className="grid grid-cols-1 gap-6 xl:grid-cols-[1.2fr_0.9fr]">
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <MetricCard title="Agendadas" value={String(visitasResumo.agendadas)} accent="info" icon={<CalendarRange size={18} />} />
+              <MetricCard title="Em andamento" value={String(visitasResumo.andamento)} accent="warning" icon={<Target size={18} />} />
+              <MetricCard title="Concluidas" value={String(visitasResumo.concluidas)} accent="success" icon={<Target size={18} />} />
             </div>
-          </Panel>
+
+            <Panel title="Ultimas visitas" subtitle="Compromissos mais recentes dentro do periodo filtrado.">
+              <div className="space-y-3">
+                {visitasFiltradas.length === 0 && <EmptyState>Nenhuma visita encontrada no periodo selecionado.</EmptyState>}
+                {visitasFiltradas.slice(0, 6).map((item) => (
+                  <div key={item.id} className="surface-subtle p-4">
+                    <div className="flex flex-wrap items-center justify-between gap-3">
+                      <div>
+                        <p className="font-semibold text-app-primary">{item.clientes?.nome || 'Cliente sem nome'}</p>
+                        <p className="mt-1 text-sm text-app-secondary">{item.perfis?.nome || 'Sem usuario'}</p>
+                      </div>
+                      <div className="rounded-full bg-white/80 px-3 py-1 text-xs font-medium text-app-secondary dark:bg-slate-800/80">
+                        {formatDate(item.data_visita)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </Panel>
+          </div>
+
           <Ranking
             title="Resumo de visitas"
             items={[
@@ -339,18 +389,20 @@ export function DashboardPage() {
       )}
 
       {showInsights && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="w-full max-w-2xl rounded-3xl bg-white p-6 shadow-2xl dark:bg-gray-900">
-            <div className="mb-4 flex items-center justify-between">
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-950/55 p-4 backdrop-blur-sm">
+          <div className="surface-panel w-full max-w-2xl p-6 sm:p-7">
+            <div className="mb-5 flex items-start justify-between gap-4">
               <div>
-                <h3 className="text-2xl font-semibold text-gray-900 dark:text-white">Insights do Dashboard</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Gerado a partir dos dados filtrados.</p>
+                <h3 className="text-2xl font-semibold tracking-tight text-app-primary">Insights do dashboard</h3>
+                <p className="mt-1 text-sm text-app-secondary">Leitura automatica a partir do recorte filtrado.</p>
               </div>
-              <button onClick={() => setShowInsights(false)} className="rounded-full px-3 py-2 text-sm text-gray-500 hover:bg-gray-100 dark:hover:bg-gray-800">Fechar</button>
+              <button onClick={() => setShowInsights(false)} className="btn-ghost">
+                Fechar
+              </button>
             </div>
             <div className="space-y-3">
               {insights.map((item) => (
-                <div key={item} className="rounded-2xl bg-gray-50 p-4 text-sm text-gray-700 dark:bg-gray-800 dark:text-gray-200">
+                <div key={item} className="surface-subtle p-4 text-sm leading-6 text-app-primary">
                   {item}
                 </div>
               ))}
@@ -362,19 +414,55 @@ export function DashboardPage() {
   );
 }
 
-function MetricCard({ title, value, color }: { title: string; value: string; color: string }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="rounded-2xl bg-white p-6 shadow dark:bg-gray-800">
-      <p className="text-sm font-medium text-gray-600 dark:text-gray-300">{title}</p>
-      <p className={`mt-3 text-3xl font-bold ${color}`}>{value}</p>
+    <div>
+      <label className="mb-2 block text-sm font-medium text-app-primary">{label}</label>
+      {children}
     </div>
   );
 }
 
-function Panel({ title, children }: { title: string; children: React.ReactNode }) {
+function MetricCard({
+  title,
+  value,
+  icon,
+  accent
+}: {
+  title: string;
+  value: string;
+  icon: ReactNode;
+  accent: 'success' | 'info' | 'danger' | 'warning' | 'amber' | 'neutral';
+}) {
+  const accentMap = {
+    success: 'bg-emerald-500/12 text-emerald-600 dark:text-emerald-300',
+    info: 'bg-brand-blue/12 text-brand-blue dark:text-blue-200',
+    danger: 'bg-rose-500/12 text-rose-600 dark:text-rose-300',
+    warning: 'bg-yellow-500/12 text-yellow-600 dark:text-yellow-300',
+    amber: 'bg-brand-orange/12 text-brand-orange dark:text-orange-200',
+    neutral: 'bg-slate-500/12 text-slate-700 dark:text-slate-200'
+  };
+
   return (
-    <div className="rounded-2xl bg-white p-6 shadow dark:bg-gray-800">
-      <h4 className="mb-4 text-lg font-bold text-gray-800 dark:text-white">{title}</h4>
+    <div className="metric-tile">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-sm font-medium text-app-secondary">{title}</p>
+          <p className="mt-3 text-3xl font-semibold tracking-tight text-app-primary">{value}</p>
+        </div>
+        <div className={`flex h-12 w-12 items-center justify-center rounded-2xl ${accentMap[accent]}`}>{icon}</div>
+      </div>
+    </div>
+  );
+}
+
+function Panel({ title, subtitle, children }: { title: string; subtitle?: string; children: ReactNode }) {
+  return (
+    <div className="surface-panel p-5 sm:p-6">
+      <div className="mb-5">
+        <h4 className="text-lg font-semibold tracking-tight text-app-primary">{title}</h4>
+        {subtitle ? <p className="mt-1 text-sm text-app-secondary">{subtitle}</p> : null}
+      </div>
       {children}
     </div>
   );
@@ -382,17 +470,26 @@ function Panel({ title, children }: { title: string; children: React.ReactNode }
 
 function Ranking({ title, items }: { title: string; items: Array<{ label: string; value: string }> }) {
   return (
-    <div className="rounded-2xl bg-white p-6 shadow dark:bg-gray-800">
-      <h4 className="mb-4 text-lg font-bold text-gray-800 dark:text-white">{title}</h4>
-      <ul className="space-y-3">
-        {items.length === 0 && <li className="text-sm text-gray-500">Nenhum dado para o periodo.</li>}
-        {items.map((item) => (
-          <li key={`${item.label}-${item.value}`} className="flex items-center justify-between rounded-xl bg-gray-50 px-4 py-3 dark:bg-gray-900/50">
-            <span className="font-medium text-gray-800 dark:text-white">{item.label}</span>
-            <span className="text-sm text-gray-500 dark:text-gray-300">{item.value}</span>
+    <div className="surface-panel p-5 sm:p-6">
+      <h4 className="text-lg font-semibold tracking-tight text-app-primary">{title}</h4>
+      <ul className="mt-5 space-y-3">
+        {items.length === 0 && <EmptyState>Nenhum dado para o periodo.</EmptyState>}
+        {items.map((item, index) => (
+          <li key={`${item.label}-${item.value}`} className="surface-subtle flex items-center justify-between gap-4 px-4 py-3">
+            <div className="flex items-center gap-3">
+              <div className="flex h-8 w-8 items-center justify-center rounded-xl bg-gradient-to-br from-brand-blue to-brand-orange text-xs font-bold text-white">
+                {index + 1}
+              </div>
+              <span className="font-medium text-app-primary">{item.label}</span>
+            </div>
+            <span className="text-sm font-semibold text-app-secondary">{item.value}</span>
           </li>
         ))}
       </ul>
     </div>
   );
+}
+
+function EmptyState({ children }: { children: ReactNode }) {
+  return <div className="surface-subtle px-4 py-5 text-sm text-app-secondary">{children}</div>;
 }

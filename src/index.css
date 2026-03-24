@@ -1,3 +1,143 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+@layer base {
+  :root {
+    color-scheme: light;
+    --app-bg: 244 248 252;
+    --app-bg-accent: 255 255 255;
+    --surface-panel: 255 255 255;
+    --surface-muted: 239 246 255;
+    --surface-elevated: 247 249 252;
+    --border-subtle: 210 223 236;
+    --text-primary: 15 23 42;
+    --text-secondary: 71 85 105;
+    --text-muted: 100 116 139;
+    --hero-start: 13 139 216;
+    --hero-end: 255 155 23;
+  }
+
+  .dark {
+    color-scheme: dark;
+    --app-bg: 6 11 22;
+    --app-bg-accent: 15 23 42;
+    --surface-panel: 15 23 42;
+    --surface-muted: 30 41 59;
+    --surface-elevated: 9 15 28;
+    --border-subtle: 51 65 85;
+    --text-primary: 241 245 249;
+    --text-secondary: 203 213 225;
+    --text-muted: 148 163 184;
+    --hero-start: 6 78 168;
+    --hero-end: 234 88 12;
+  }
+
+  html {
+    @apply antialiased;
+  }
+
+  body {
+    @apply min-h-screen bg-app text-app-primary transition-colors duration-300;
+    background-image:
+      radial-gradient(circle at top left, rgba(var(--hero-start), 0.15), transparent 24rem),
+      radial-gradient(circle at bottom right, rgba(var(--hero-end), 0.14), transparent 28rem),
+      linear-gradient(180deg, rgba(var(--app-bg-accent), 0.86), rgba(var(--app-bg), 1));
+  }
+
+  #root {
+    @apply min-h-screen;
+  }
+}
+
+@layer components {
+  .surface-panel {
+    @apply rounded-[28px] shadow-soft backdrop-blur;
+    border: 1px solid rgba(var(--border-subtle), 0.7);
+    background-color: rgba(var(--surface-panel), 0.9);
+  }
+
+  .surface-subtle {
+    @apply rounded-3xl backdrop-blur;
+    border: 1px solid rgba(var(--border-subtle), 0.6);
+    background-color: rgba(var(--surface-muted), 0.72);
+  }
+
+  .page-shell {
+    @apply min-h-full bg-transparent;
+  }
+
+  .page-header {
+    @apply surface-panel flex flex-col gap-4 p-5 sm:p-6 lg:flex-row lg:items-center lg:justify-between;
+  }
+
+  .section-title {
+    @apply text-3xl font-semibold tracking-tight text-app-primary;
+  }
+
+  .section-copy {
+    @apply mt-1 text-sm text-app-secondary sm:text-base;
+  }
+
+  .input-field {
+    @apply h-12 w-full rounded-2xl border border-border-subtle bg-surface-elevated px-4 text-sm text-app-primary outline-none transition placeholder:text-app-muted focus:border-brand-blue focus:ring-4 focus:ring-brand-blue/15;
+  }
+
+  .textarea-field {
+    @apply w-full rounded-2xl border border-border-subtle bg-surface-elevated px-4 py-3 text-sm text-app-primary outline-none transition placeholder:text-app-muted focus:border-brand-blue focus:ring-4 focus:ring-brand-blue/15;
+  }
+
+  .btn-primary {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-blue to-brand-blue-deep px-5 text-sm font-semibold text-white shadow-glow transition hover:scale-[1.01] hover:from-brand-blue-deep hover:to-brand-blue;
+  }
+
+  .btn-accent {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-2xl bg-gradient-to-r from-brand-orange to-brand-orange-deep px-5 text-sm font-semibold text-white shadow-soft transition hover:scale-[1.01] hover:from-brand-orange-deep hover:to-brand-orange;
+  }
+
+  .btn-secondary {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-2xl border border-border-subtle bg-surface-panel px-5 text-sm font-semibold text-app-primary transition hover:bg-surface-muted;
+  }
+
+  .btn-ghost {
+    @apply inline-flex h-11 items-center justify-center gap-2 rounded-2xl px-4 text-sm font-medium text-app-secondary transition hover:bg-surface-muted hover:text-app-primary;
+  }
+
+  .metric-tile {
+    @apply surface-panel p-5 sm:p-6;
+  }
+}
+
+@layer utilities {
+  .bg-app {
+    background-color: rgb(var(--app-bg));
+  }
+
+  .bg-surface-panel {
+    background-color: rgb(var(--surface-panel));
+  }
+
+  .bg-surface-muted {
+    background-color: rgb(var(--surface-muted));
+  }
+
+  .bg-surface-elevated {
+    background-color: rgb(var(--surface-elevated));
+  }
+
+  .border-border-subtle {
+    border-color: rgb(var(--border-subtle));
+  }
+
+  .text-app-primary {
+    color: rgb(var(--text-primary));
+  }
+
+  .text-app-secondary {
+    color: rgb(var(--text-secondary));
+  }
+
+  .text-app-muted {
+    color: rgb(var(--text-muted));
+  }
+}

@@ -33,6 +33,15 @@ export type RHJoin<T> = T & {
   perfis: Pick<Perfil, 'nome' | 'email'> | null;
 };
 
+async function withTimeout<T>(promise: PromiseLike<T>, label: string, timeoutMs = 12000): Promise<T> {
+  return await Promise.race([
+    promise,
+    new Promise<T>((_, reject) => {
+      setTimeout(() => reject(new Error(`Tempo limite excedido ao carregar ${label}.`)), timeoutMs);
+    })
+  ]);
+}
+
 async function fetchVisitas(): Promise<VisitaComRelacionamentos[]> {
   const { data, error } = await supabase
     .from('visitas')
@@ -55,7 +64,10 @@ async function fetchClientes(): Promise<Cliente[]> {
 }
 
 async function fetchPerfis(): Promise<Perfil[]> {
-  const { data, error } = await supabase.from('perfis').select('*').order('nome', { ascending: true });
+  const { data, error } = await withTimeout(
+    supabase.from('perfis').select('*').order('nome', { ascending: true }),
+    'perfis'
+  );
   if (error) throw new Error(error.message);
   return (data || []) as Perfil[];
 }
@@ -196,10 +208,13 @@ async function fetchAtivosColaboradores(): Promise<RHJoin<AtivoColaborador>[]> {
 }
 
 async function fetchConvitesUsuarios(): Promise<ConviteUsuario[]> {
-  const { data, error } = await supabase
-    .from('convites_usuarios')
-    .select('*')
-    .order('created_at', { ascending: false });
+  const { data, error } = await withTimeout(
+    supabase
+      .from('convites_usuarios')
+      .select('*')
+      .order('created_at', { ascending: false }),
+    'convites de usuarios'
+  );
 
   if (error) throw new Error(error.message);
   return (data || []) as ConviteUsuario[];

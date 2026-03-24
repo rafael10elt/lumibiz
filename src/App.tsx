@@ -19,14 +19,23 @@ const TenantsPage = lazy(() => import('./pages/SuperAdmin/TenantsPage').then((m)
 const PlanosPage = lazy(() => import('./pages/SuperAdmin/PlanosPage').then((m) => ({ default: m.PlanosPage })));
 
 const FullScreenLoader = () => (
-  <div className="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
-    <div className="h-12 w-12 animate-spin rounded-full border-b-2 border-brand-gold" />
+  <div className="flex min-h-screen items-center justify-center bg-app text-app-primary">
+    <div className="flex items-center gap-3 rounded-full border border-white/60 bg-white/70 px-5 py-3 shadow-soft backdrop-blur dark:border-white/10 dark:bg-slate-900/70">
+      <div className="h-10 w-10 animate-spin rounded-full border-4 border-brand-orange/25 border-t-brand-blue" />
+      <div>
+        <p className="text-sm font-semibold text-app-primary">Carregando LumiBiz</p>
+        <p className="text-xs text-app-secondary">Preparando seu ambiente</p>
+      </div>
+    </div>
   </div>
 );
 
 const RouteLoader = () => (
   <div className="flex h-48 items-center justify-center">
-    <div className="h-10 w-10 animate-spin rounded-full border-b-2 border-brand-gold" />
+    <div className="flex items-center gap-3 rounded-full border border-border-subtle bg-surface-panel px-4 py-3 shadow-soft">
+      <div className="h-9 w-9 animate-spin rounded-full border-4 border-brand-blue/20 border-t-brand-orange" />
+      <span className="text-sm font-medium text-app-secondary">Carregando tela</span>
+    </div>
   </div>
 );
 

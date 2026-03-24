@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../contexts/AuthContext';
 import { cn } from '../../lib/utils';
+import { BrandMark } from './BrandMark';
 
 const baseLinks = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
@@ -46,12 +47,16 @@ export function Sidebar({ onNavigate }: SidebarProps) {
   const links = perfil?.role === 'super_admin' ? superAdminLinks : baseLinks;
 
   return (
-    <aside className="flex h-full w-64 flex-col items-center bg-brand-dark py-4 text-white lg:w-20">
-      <div className="mb-6 flex h-14 w-14 items-center justify-center rounded-lg border-2 border-brand-gold/50 bg-gradient-to-br from-gray-700 to-gray-800 shadow-lg">
-        <span className="text-3xl font-bold text-brand-gold">L</span>
+    <aside className="flex h-full w-[18.5rem] flex-col gap-6 border-r border-border-subtle/60 bg-[rgba(var(--surface-panel),0.92)] px-4 py-5 text-app-primary shadow-panel backdrop-blur xl:w-80">
+      <BrandMark />
+
+      <div className="surface-subtle px-4 py-3">
+        <p className="text-xs uppercase tracking-[0.24em] text-app-muted">Workspace</p>
+        <p className="mt-2 text-sm font-semibold text-app-primary">{perfil?.tenants?.nome_fantasia || 'Tenant atual'}</p>
+        <p className="mt-1 text-xs capitalize text-app-secondary">{perfil?.role || 'usuario'}</p>
       </div>
 
-      <nav className="flex w-full flex-1 flex-col items-stretch gap-2 overflow-y-auto px-3 lg:items-center lg:px-0">
+      <nav className="flex w-full flex-1 flex-col gap-2 overflow-y-auto">
         {links.map((link) => (
           <NavLink
             key={link.to}
@@ -61,14 +66,21 @@ export function Sidebar({ onNavigate }: SidebarProps) {
             onClick={onNavigate}
             className={({ isActive }) =>
               cn(
-                'flex h-12 w-full items-center gap-3 rounded-lg px-3 transition-colors lg:w-12 lg:justify-center lg:px-0',
-                'text-gray-400 hover:bg-brand-gold hover:text-white',
-                isActive && 'bg-brand-gold text-white'
+                'group flex min-h-14 w-full items-center gap-3 rounded-2xl px-4 transition-all duration-200',
+                'border border-transparent text-app-secondary hover:border-brand-blue/20 hover:bg-surface-muted hover:text-app-primary',
+                isActive && 'border-brand-blue/20 bg-gradient-to-r from-brand-blue/10 to-brand-orange/10 text-app-primary shadow-soft'
               )
             }
           >
-            <link.icon size={22} />
-            <span className="text-base lg:hidden">{link.label}</span>
+            <div className="flex h-10 w-10 items-center justify-center rounded-2xl bg-surface-elevated text-brand-blue transition group-hover:bg-white dark:group-hover:bg-slate-800">
+              <link.icon size={20} />
+            </div>
+            <div className="min-w-0">
+              <span className="block truncate text-sm font-semibold">{link.label}</span>
+              <span className="block truncate text-xs text-app-muted">
+                {link.to.startsWith('/superadmin') ? 'Gestao global' : 'Modulo operacional'}
+              </span>
+            </div>
           </NavLink>
         ))}
       </nav>
